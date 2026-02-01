@@ -1,0 +1,14 @@
+# Number of layers
+n_layers = 4
+#
+# Lattice parameters of the cut superlattice
+lattice_parameters = [1.0, 1.0, 1.0]
+
+cut_vectors_block
+82.39265933990215 0.0 0.0
+41.19633027600028 71.35413673480953 0.0
+0.0 0.0 100.0
+
+orthocell_12atom_sw = False
+
+lammps_dump_file = "dump.Final"

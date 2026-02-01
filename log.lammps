@@ -1,0 +1,19 @@
+LAMMPS (29 Aug 2024 - Update 1)
+# General
+units           metal
+dimension       3
+atom_style      atomic
+neighbor        0.3 bin
+
+
+# Structure
+boundary        p p p
+read_data       structure.lammps
+Reading data file ...
+  triclinic box = (0 0 0) to (82.392659 71.354137 100) with tilt (41.19633 0 0)
+WARNING: Triclinic box skew is large. LAMMPS will run inefficiently. (src/domain.cpp:221)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+ERROR: Incorrect format in Atoms section of data file: 1 1 1 0.42 0.0 0.0 2.631802725
+For more information see https://docs.lammps.org/err0002 (src/atom.cpp:1089)
+Last command: read_data       structure.lammps

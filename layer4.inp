@@ -1,0 +1,26 @@
+# twist angle by which this layer should be rotated
+twist_angle = 0.0
+
+# Lattice parameters in Angstrom units
+lattice_parameters = [2.4967472577982845, 2.4967472577982845, 100.0]
+
+# Lattice vectors in units of the lattice 
+# parameters
+lattice_vectors_block
+-0.01990469  0.99980188  0.    
+-0.87580618  0.48266298  0. 
+0.0 0.0 1.0
+
+# Atom positions are provided in crystal/scaled positions
+# The integer tags are optional
+start_atom_positions_block
+B 0.000000000 0.000000000 0.05866802725 9
+N 0.66666666667 0.66666666667 0.05866802725 10
+end_atom_positions_block
+
+strain_percentage = [0.0, 0.0, 0.0 ]
+
+# translate along z-axis (Angstrom)
+translate_z = 6.5+3.2*2
+
+intralayer_potential = "BNC.tersoff"

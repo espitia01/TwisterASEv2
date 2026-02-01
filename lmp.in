@@ -1,0 +1,52 @@
+# General
+units           metal
+dimension       3
+atom_style      atomic
+neighbor        0.3 bin
+
+
+# Structure
+boundary        p p p
+read_data       structure.lammps
+mass 1 183.84
+mass 2 78.971
+mass 3 78.971
+mass 4 183.84
+mass 5 78.971
+mass 6 78.971
+mass 7 10.81
+mass 8 14.007
+mass 9 10.81
+mass 10 14.007
+
+# potential definitions
+pair_style hybrid/overlay sw/mod sw/mod tersoff tersoff kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 lj/cut 10.0
+# Number of interlayer interactions = 8
+
+# intralayer interactions
+pair_coeff * * sw/mod 1 tmd.sw W Se Se NULL NULL NULL NULL NULL NULL NULL
+pair_coeff * * sw/mod 2 tmd.sw NULL NULL NULL W Se Se NULL NULL NULL NULL
+pair_coeff * * tersoff 1 BNC.tersoff NULL NULL NULL NULL NULL NULL B N NULL NULL
+pair_coeff * * tersoff 2 BNC.tersoff NULL NULL NULL NULL NULL NULL NULL NULL B N
+
+pair_coeff * * lj/cut 0.0 3.4
+
+# interlayer interaction
+pair_coeff 7 2 kolmogorov/crespi/z 1 SeBN.KC NULL Se NULL NULL NULL NULL B NULL NULL NULL
+pair_coeff 8 2 kolmogorov/crespi/z 2 SeBN.KC NULL Se NULL NULL NULL NULL NULL B NULL NULL
+pair_coeff 1 5 kolmogorov/crespi/z 3 MoWSSe.KC W NULL NULL NULL Se NULL NULL NULL NULL NULL
+pair_coeff 1 4 kolmogorov/crespi/z 4 MoWSSe.KC W NULL NULL W NULL NULL NULL NULL NULL NULL
+pair_coeff 3 5 kolmogorov/crespi/z 5 MoWSSe.KC NULL NULL Se NULL Se NULL NULL NULL NULL NULL
+pair_coeff 3 4 kolmogorov/crespi/z 6 MoWSSe.KC NULL NULL Se W NULL NULL NULL NULL NULL NULL
+pair_coeff 6 9 kolmogorov/crespi/z 7 SeBN.KC NULL NULL NULL NULL NULL Se NULL NULL B NULL
+pair_coeff 6 10 kolmogorov/crespi/z 8 SeBN.KC NULL NULL NULL NULL NULL Se NULL NULL NULL B
+
+# Optimize at 0 K
+dump            1 all custom 400 dump.minimization id type x y z
+thermo          500
+min_style       fire
+minimize        0.0 1.0e-4 1000000 1000000
+write_dump all atom dump.Final
+print "Done!" 
+
+
