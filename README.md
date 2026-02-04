@@ -34,8 +34,8 @@ TwisterASE builds supercells of twisted 2D materials (graphene, hBN, TMDs) and g
 
 ### Post-Processing & Analysis
 - **Layer extraction** from relaxed LAMMPS structures (`cutpos.py`)
-- **Interlayer spacing analysis** with heatmaps and statistics
-- **Strain analysis** with distribution plots
+- **Interlayer spacing analysis** 
+- **Strain analysis** 
 - **DFT converters**: CIF → SIESTA (.fdf), Quantum ESPRESSO (.in)
 
 ---
