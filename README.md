@@ -70,7 +70,7 @@ n_layers = 2
 hex_lattice = True
 
 # Twist angle via commensurate index
-i_value = 7  # ~21.8° twist angle
+i_value = 1  # ~21.8° twist angle
 
 # Superlattice parameters
 lattice_parameters = [2.46, 2.46, 35.0]
