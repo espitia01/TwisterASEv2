@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="docs/images/logo.jpg" alt="TwisterASE Logo" width="400">
+  <img src="docs/images/logo.png" alt="TwisterASE Logo" width="400">
 </p>
 
 # TwisterASE
 
-**A Python toolkit for generating and analyzing twisted layered material heterostructures**
+**A Python toolkit for generating and analyzing twisted layered material structures**
 
 TwisterASE builds supercells of twisted 2D materials (graphene, hBN, TMDs) and generates LAMMPS input files for molecular dynamics simulations with automatic interlayer potential configuration.
 
@@ -13,30 +13,30 @@ TwisterASE builds supercells of twisted 2D materials (graphene, hBN, TMDs) and g
 ## Features
 
 ### Structure Generation
-- ✅ **Twist angle control** via commensurate supercell indices (i-value or m,n values)
-- ✅ **Multi-layer heterostructures** (graphene, hBN, TMDs)
-- ✅ **Hexagonal and orthorhombic basis** support for TMDs
-- ✅ **Automatic supercell construction** with periodic boundary conditions
-- ✅ **CIF output** for visualization and DFT calculations
+- **Twist angle control** via commensurate supercell indices (i-value or m,n values)
+- **Multi-layer heterostructures** (graphene, hBN, TMDs)
+- **Hexagonal and orthorhombic basis** support for TMDs
+- **Automatic supercell construction** with periodic boundary conditions
+- **CIF output** for visualization and DFT calculations
 
 ### LAMMPS Integration
-- ✅ **Automatic LAMMPS input generation** (`structure.lammps`, `lammps.in`)
-- ✅ **Material-specific potentials**:
+- **Automatic LAMMPS input generation** (`structure.lammps`, `lammps.in`)
+- **Material-specific potentials**:
   - Graphene: REBO, KC interlayer
   - hBN: Tersoff intralayer, KC interlayer
   - TMD: SW/mod intralayer, KC interlayer
   - Mixed systems: Separate potentials per layer
-- ✅ **Interlayer interaction generation**:
+- **Interlayer interaction generation**:
   - Hexagonal TMD: Classification-based (metal-metal, chalcogen-chalcogen)
   - Orthorhombic TMD: Full 64 interactions per layer pair
   - hBN-TMD: All cross-layer pairs with KC potential
-- ✅ **Atom style**: `atomic` (no charges/molecules)
+- **Atom style**: `atomic` (no charges/molecules)
 
 ### Post-Processing & Analysis
-- ✅ **Layer extraction** from relaxed LAMMPS structures (`cutpos.py`)
-- ✅ **Interlayer spacing analysis** with heatmaps and statistics
-- ✅ **Strain analysis** with distribution plots
-- ✅ **DFT converters**: CIF → SIESTA (.fdf), Quantum ESPRESSO (.in)
+- **Layer extraction** from relaxed LAMMPS structures (`cutpos.py`)
+- **Interlayer spacing analysis** with heatmaps and statistics
+- **Strain analysis** with distribution plots
+- **DFT converters**: CIF → SIESTA (.fdf), Quantum ESPRESSO (.in)
 
 ---
 
