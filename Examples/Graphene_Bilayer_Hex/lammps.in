@@ -1,0 +1,30 @@
+#1 General
+units           metal
+dimension       3
+atom_style      atomic
+neighbor        0.3 bin
+
+#2 Structure
+boundary        p p p
+read_data       structure.lammps
+mass 1 12.011
+mass 2 12.011
+mass 3 12.011
+mass 4 12.011
+
+#3 Potential definitions
+pair_style      hybrid/overlay rebo kolmogorov/crespi/z 14.0
+
+#4 Intralayer interactions
+pair_coeff      * * rebo CH.rebo C C C C
+
+#5 Interlayer interactions
+pair_coeff      1 3 kolmogorov/crespi/z CC.KC C C C C
+
+#6 Optimize at 0 K
+dump            1 all custom 400 dump.minimization id type x y z
+min_style       fire
+minimize        0.0 1.0e-8 1000000 1000000
+undump          1
+write_dump      all custom dump.Final id type x y z modify sort id
+print "Done!"

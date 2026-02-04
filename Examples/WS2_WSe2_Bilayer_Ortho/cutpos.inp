@@ -1,0 +1,13 @@
+# cutpos.inp - Configuration for layer extraction
+
+n_layers = 2
+lammps_dump = "dump.Final"
+orthocell_12atom_sw = True
+
+# Optional: Cut to smaller supercell (comment out to use full structure)
+# For twisted bilayers, DO NOT cut - use the full superlattice
+lattice_parameters = [3.213, 3.213, 35.0]
+superlattice_vectors_block
+33.0 0.0 0.0
+16.5 28.578838324886473 0.000000000
+0.0 0.0 1.0

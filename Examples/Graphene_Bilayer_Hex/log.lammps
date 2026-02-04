@@ -1,0 +1,125 @@
+LAMMPS (29 Aug 2024 - Update 1)
+#1 General
+units           metal
+dimension       3
+atom_style      atomic
+neighbor        0.3 bin
+
+#2 Structure
+boundary        p p p
+read_data       structure.lammps
+Reading data file ...
+  triclinic box = (0 0 0) to (40.496711 35.07118 35) with tilt (20.248355 0 0)
+WARNING: Triclinic box skew is large. LAMMPS will run inefficiently. (src/domain.cpp:221)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  1084 atoms
+  read_data CPU = 0.003 seconds
+mass 1 12.011
+mass 2 12.011
+mass 3 12.011
+mass 4 12.011
+
+#3 Potential definitions
+pair_style      hybrid/overlay rebo kolmogorov/crespi/z 14.0
+
+#4 Intralayer interactions
+pair_coeff      * * rebo CH.rebo C C C C
+Reading rebo potential file CH.rebo with DATE: 2018-7-3
+
+#5 Interlayer interactions
+pair_coeff      1 3 kolmogorov/crespi/z CC.KC C C C C
+
+#6 Optimize at 0 K
+dump            1 all custom 400 dump.minimization id type x y z
+min_style       fire
+minimize        0.0 1.0e-8 1000000 1000000
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Your simulation uses code contributions which should be cited:
+
+- Type Label Framework: https://doi.org/10.1021/acs.jpcb.3c08419
+
+@Article{Gissinger24,
+ author = {Jacob R. Gissinger, Ilia Nikiforov, Yaser Afshar, Brendon Waters, Moon-ki Choi, Daniel S. Karls, Alexander Stukowski, Wonpil Im, Hendrik Heinz, Axel Kohlmeyer, and Ellad B. Tadmor},
+ title = {Type Label Framework for Bonded Force Fields in LAMMPS},
+ journal = {J. Phys. Chem. B},
+ year =    2024,
+ volume =  128,
+ number =  13,
+ pages =   {3282–-3297}
+}
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 14.3
+  ghost atom cutoff = 14.3
+  binsize = 7.15, bins = 9 5 5
+  3 neighbor lists, perpetual/occasional/extra = 3 0 0
+  (1) pair rebo, perpetual
+      attributes: full, newton on, ghost, cut 6.3
+      pair build: full/bin/ghost
+      stencil: full/ghost/bin/3d
+      bin: standard
+  (2) pair kolmogorov/crespi/z, perpetual, skip from (3)
+      attributes: half, newton on
+      pair build: skip
+      stencil: none
+      bin: none
+  (3) neighbor class addition, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton/tri
+      stencil: half/bin/3d/tri
+      bin: standard
+  Parameters for fire:
+    dmax  delaystep dtgrow dtshrink alpha0 alphashrink tmax tmin   integrator   halfstepback   abcfire  
+     0.1     20      1.1     0.5     0.25     0.99      10  0.02 eulerimplicit      yes          no     
+Per MPI rank memory allocation (min/avg/max) = 5.921 | 5.921 | 5.921 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+         0   0             -8021.1718      0             -8021.1718      169.42239    
+     61959   1.3515097e-16 -8022.5557      0             -8022.5557     -241.18149    
+Loop time of 100.465 on 1 procs for 61959 steps with 1084 atoms
+
+97.9% CPU use with 1 MPI tasks x no OpenMP threads
+
+Minimization stats:
+  Stopping criterion = force tolerance
+  Energy initial, next-to-last, final = 
+      -8021.1718486041  -8022.55569159837  -8022.55569159837
+  Force two-norm initial, final = 1.1734333 9.9988624e-09
+  Force max component initial, final = 0.10310684 6.3273647e-10
+  Final line search alpha, max atom move = 0 0
+  Iterations, force evaluations = 61959 65331
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 98.916     | 98.916     | 98.916     |   0.0 | 98.46
+Neigh   | 0.015461   | 0.015461   | 0.015461   |   0.0 |  0.02
+Comm    | 0.56344    | 0.56344    | 0.56344    |   0.0 |  0.56
+Output  | 0.094046   | 0.094046   | 0.094046   |   0.0 |  0.09
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.8765     |            |       |  0.87
+
+Nlocal:           1084 ave        1084 max        1084 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           3796 ave        3796 max        3796 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:        86192 ave       86192 max       86192 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 86192
+Ave neighs/atom = 79.512915
+Neighbor list builds = 2
+Dangerous builds = 0
+undump          1
+write_dump      all custom dump.Final id type x y z modify sort id
+print "Done!"
+Done!
+Total wall time: 0:01:40

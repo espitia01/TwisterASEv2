@@ -1,0 +1,10 @@
+n_layers = 2
+hex_lattice = True
+
+i_value = 2
+
+lattice_parameters = [3.28, 3.28, 35.0]
+
+write_lammps = True
+
+interlayer_potential = "WSe2.KC"

@@ -1,0 +1,57 @@
+# Initialization
+units           metal
+dimension       3
+box tilt        large
+boundary        p p p
+atom_style      full
+
+# System and atom definition
+read_data       structure.lammps
+
+mass            1 10.81
+mass            2 14.007
+mass            3 10.81
+mass            4 14.007
+mass            5 10.81
+mass            6 14.007
+
+group           layer1 molecule 1
+group           layer2 molecule 2
+group           layer3 molecule 3
+
+# Potentials
+pair_style      hybrid/overlay tersoff ilp/graphene/hbn 16.0 coul/shield 16.0 1
+
+# Intralayer Interaction
+pair_coeff      * * tersoff BNC.tersoff B N
+
+# Interlayer Interaction
+pair_coeff      * * ilp/graphene/hbn BNCH.ILP B N
+
+# Coulomb interactions between layers
+pair_coeff      1 3 coul/shield 0.7
+pair_coeff      1 4 coul/shield 0.6949820141557622
+pair_coeff      2 3 coul/shield 0.6949820141557622
+pair_coeff      2 4 coul/shield 0.69
+pair_coeff      1 3 coul/shield 0.7
+pair_coeff      1 4 coul/shield 0.6949820141557622
+pair_coeff      2 3 coul/shield 0.6949820141557622
+pair_coeff      2 4 coul/shield 0.69
+pair_coeff      3 3 coul/shield 0.7
+pair_coeff      3 4 coul/shield 0.6949820141557622
+pair_coeff      4 3 coul/shield 0.6949820141557622
+pair_coeff      4 4 coul/shield 0.69
+
+# Neighbor settings
+neighbor        2.0 bin
+neigh_modify    every 1 delay 0 check yes
+
+# Optimization
+dump            1 all custom 100 dump.minimization id type x y z
+thermo          1000
+thermo_style    custom step pe press
+min_style       fire
+minimize        1.0e-10 1.0e-12 100000 1000000
+undump          1
+write_dump      all custom dump.Final id type x y z modify sort id
+print "Done!"
