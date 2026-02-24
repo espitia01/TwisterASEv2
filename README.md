@@ -4,6 +4,8 @@
 
 # TwisterASE
 
+[![DOI](https://zenodo.org/badge/1146869363.svg)](https://doi.org/10.5281/zenodo.18761861)
+
 **A Python toolkit for generating and analyzing twisted layered material heterostructures**
 
 TwisterASE builds supercells of twisted 2D materials (graphene, hBN, TMDs) and generates LAMMPS input files for molecular dynamics simulations with automatic interlayer potential configuration.
