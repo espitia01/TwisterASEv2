@@ -190,20 +190,6 @@ Produces interlayer spacing maps and per-layer strain maps in `InterlayerSpacing
 
 ---
 
-## Supported Materials
-
-| Material | Basis | Intralayer | Interlayer | Examples |
-|----------|-------|-----------|-----------|---------|
-| **Graphene** | 2 C atoms (hex) | REBO (`CH.rebo`) | KC (`CC.KC`) — one `pair_coeff` per adjacent pair | `Graphene_Bilayer_Hex/` |
-| **hBN** | 2 atoms B, N (hex) | Tersoff (`BNC.tersoff`) per layer | ILP (`BNCH.ILP`) | `Bilayer_hBN/`, `hBN_Trilayer_Hex/` |
-| **TMD hex** | 3 atoms: TM + 2 X (hex) | SW/mod (`tmd.sw`) | KC — z-classified (TM, X_l, X_u) | `tMoSe2/`, `WSe2_Bilayer_Hex/` |
-| **TMD ortho** | 12 atoms: 4 TM + 8 X (ortho) | SW/mod | KC — 64 interactions per layer pair | `tMoSe2_Ortho/`, `WS2_WSe2_Bilayer_Ortho/` |
-| **hBN + TMD** | mixed | SW/mod + Tersoff per layer | KC chalcogen-specific (`SeBN.KC`, `SBN.KC`) | `tWSe2_hBN/`, `tMoSe2_Ortho_hBN/` |
-
-> Graphene+TMD and hBN+Graphene mixed systems are not yet implemented.
-
----
-
 ## File Structure
 
 ```
@@ -228,16 +214,6 @@ TwisterASEv2/
 │   └── cif2qe.py                  # CIF → Quantum ESPRESSO converter
 │
 ├── Examples/
-│   ├── Graphene_Bilayer_Hex/      # Twisted bilayer graphene (i_value=9, ~13.2°)
-│   ├── Bilayer_hBN/               # hBN bilayer
-│   ├── hBN_Trilayer_Hex/          # hBN trilayer
-│   ├── WSe2_Bilayer_Hex/          # Hexagonal WSe2 bilayer
-│   ├── WS2_WSe2_Bilayer_Ortho/    # Orthorhombic WS2/WSe2 heterostructure
-│   ├── tMoSe2/                    # Twisted MoSe2 (hex, i_value=5)
-│   ├── tMoSe2_Ortho/              # Twisted MoSe2 (orthorhombic basis)
-│   ├── tMoSe2_Ortho_hBN/          # MoSe2 ortho + hBN encapsulation
-│   ├── tWSe2_hBN/                 # Mixed TMD-hBN heterostructure
-│   └── MoSe2-10x10_SC/            # Large MoSe2 supercell
 │
 ├── docs/
 │   ├── input_files.md             # Full input file format reference
