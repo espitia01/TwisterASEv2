@@ -347,7 +347,6 @@ Each atom type must have a **unique integer tag** across all layers. Tags map LA
 
 1. **Mixed systems**: Only hBN+TMD is fully implemented. Graphene+TMD and hBN+Graphene are not yet supported.
 2. **Twist angle override**: `i_value`/`mn_values` only sets the twist for layers 1 and 2. Layers 3+ use `twist_angle` from their input file.
-3. **Ortho z-tolerance**: Chalcogen partitioning uses a fixed z-tolerance. Highly corrugated post-relaxation structures may need manual verification.
 
 ---
 
