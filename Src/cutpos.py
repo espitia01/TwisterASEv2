@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 cutpos.py - Extract individual layers from LAMMPS dump.Final
 
@@ -41,7 +40,7 @@ def parse_cutpos_input(filename='cutpos.inp'):
         with open(filename, 'r') as f:
             lines = f.readlines()
     except FileNotFoundError:
-        print(f"❌ {filename} not found! Using defaults.")
+        print(f"[FAIL] {filename} not found! Using defaults.")
         return config
     
     for iline, line in enumerate(lines):
@@ -114,7 +113,7 @@ def main():
     config = parse_cutpos_input()
     
     if config['n_layers'] is None:
-        print("❌ n_layers not specified in cutpos.inp!")
+        print("[FAIL] n_layers not specified in cutpos.inp!")
         sys.exit(1)
     
     n_layers = config['n_layers']
@@ -130,11 +129,11 @@ def main():
     print(f"\nReading LAMMPS dump: {dump_file}")
     try:
         atoms, lammps_types = parse_lammps_dump(dump_file)
-        print(f"  ✅ Read {len(atoms)} atoms")
-        print(f"  ✅ Extracted {len(lammps_types)} LAMMPS types")
+        print(f"  Read {len(atoms)} atoms")
+        print(f"  Extracted {len(lammps_types)} LAMMPS types")
         print(f"  Unique types: {sorted(set(lammps_types))}")
     except Exception as e:
-        print(f"❌ Error reading dump file: {e}")
+        print(f"[FAIL] Error reading dump file: {e}")
         sys.exit(1)
     
     # Load layer definitions
@@ -145,9 +144,9 @@ def main():
         try:
             layer = Layer(layer_file)
             layers.append(layer)
-            print(f"  ✅ Loaded {layer_file}")
+            print(f"  Loaded {layer_file}")
         except Exception as e:
-            print(f"❌ Error loading {layer_file}: {e}")
+            print(f"[FAIL] Error loading {layer_file}: {e}")
             sys.exit(1)
     
     # Build tag-to-layer mapping
@@ -167,7 +166,7 @@ def main():
         for tag, sym in zip(uc_tags, uc_symbols):
             tag_int = int(tag)
             if tag_int in type_to_layer:
-                print(f"❌ Tag {tag_int} appears in multiple layers! Make sure that the basis atoms in the layer input files have unique tags.")
+                print(f"[FAIL] Tag {tag_int} appears in multiple layers! Make sure that the basis atoms in the layer input files have unique tags.")
                 sys.exit(1)
             type_to_symbol[tag_int] = sym
             type_to_layer[tag_int] = ilayer
@@ -182,11 +181,11 @@ def main():
     expected_tags = set(type_to_symbol.keys())
     lammps_tags_set = set(lammps_types)
     if expected_tags != lammps_tags_set:
-        print(f"❌ Tag mismatch!")
+        print(f"[FAIL] Tag mismatch!")
         print(f"  Expected: {sorted(expected_tags)}")
         print(f"  Found: {sorted(lammps_tags_set)}")
         sys.exit(1)
-    print(f"  ✅ Tag validation passed")
+    print(f"  Tag validation passed")
     
     # Set chemical symbols
     symbols = [type_to_symbol[atype] for atype in lammps_types]
@@ -195,7 +194,7 @@ def main():
     
     # Write full relaxed structure
     write('relaxed_structure.cif', atoms)
-    print(f"\n✅ Wrote relaxed_structure.cif ({len(atoms)} atoms)")
+    print(f"\nWrote relaxed_structure.cif ({len(atoms)} atoms)")
     
     # Cut to smaller supercell if specified
     if config['cut_vectors'] is not None and config['lattice_parameters'] is not None:
@@ -203,7 +202,7 @@ def main():
         cut_vectors_cart = config['cut_vectors'] * config['lattice_parameters']
         struct_cut = hexcut(atoms, cut_vectors_cart, atoms.get_cell())
         write('cut_structure.cif', struct_cut)
-        print(f"  ✅ Wrote cut_structure.cif ({len(struct_cut)} atoms)")
+        print(f"  Wrote cut_structure.cif ({len(struct_cut)} atoms)")
     else:
         struct_cut = atoms
         print(f"\nNo cut specified, using full structure")
@@ -221,7 +220,7 @@ def main():
         layer_indices = np.where(layer_mask)[0]
         
         if len(layer_indices) == 0:
-            print(f"  ⚠️  Layer {ilayer+1}: No atoms found")
+            print(f"  WARNING: Layer {ilayer+1}: No atoms found")
             continue
         
         # Create ASE Atoms object for this layer
@@ -238,7 +237,7 @@ def main():
         # Write layer CIF file
         output_cif = f'layer_{ilayer+1}.cif'
         write(output_cif, layer_atoms)
-        print(f"  ✅ Layer {ilayer+1}: {len(layer_indices)} atoms -> {output_cif}")
+        print(f"  Layer {ilayer+1}: {len(layer_indices)} atoms -> {output_cif}")
         
         # Also write coordinate file
         output_coords = f'layer_{ilayer+1}_coords.dat'

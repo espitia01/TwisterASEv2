@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 analysis.py - Analyze interlayer spacing and strain in relaxed structures
 
@@ -246,7 +245,7 @@ def plot_interlayer_spacing(spacing_data, output_file='interlayer_spacing.png'):
     
     plt.tight_layout()
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    print(f"\n✅ Saved plot: {output_file}")
+    print(f"\nSaved plot: {output_file}")
     plt.close()
 
 
@@ -278,7 +277,7 @@ def plot_strain(strain_data, output_file='strain_distribution.png'):
     
     plt.tight_layout()
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    print(f"✅ Saved plot: {output_file}")
+    print(f"Saved plot: {output_file}")
     plt.close()
 
 
@@ -312,7 +311,7 @@ def main():
     
     if command == 'spacing':
         if len(sys.argv) < 4:
-            print("❌ Error: Need relaxed CIF and at least 2 layer CIF files")
+            print("[FAIL] Error: Need relaxed CIF and at least 2 layer CIF files")
             sys.exit(1)
         
         relaxed_cif = sys.argv[2]
@@ -323,7 +322,7 @@ def main():
         
     elif command == 'strain':
         if len(sys.argv) < 4:
-            print("❌ Error: Need initial and relaxed CIF files")
+            print("[FAIL] Error: Need initial and relaxed CIF files")
             sys.exit(1)
         
         initial_cif = sys.argv[2]
@@ -334,7 +333,7 @@ def main():
         
     elif command == 'all':
         if len(sys.argv) < 5:
-            print("❌ Error: Need initial CIF, relaxed CIF, and layer CIF files")
+            print("[FAIL] Error: Need initial CIF, relaxed CIF, and layer CIF files")
             sys.exit(1)
         
         initial_cif = sys.argv[2]
@@ -352,7 +351,7 @@ def main():
         print(f"{'='*60}")
         
     else:
-        print(f"❌ Unknown command: {command}")
+        print(f"[FAIL] Unknown command: {command}")
         sys.exit(1)
 
 

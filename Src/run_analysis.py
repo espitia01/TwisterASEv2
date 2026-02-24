@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 run_analysis.py - Complete analysis workflow for layered materials
 
@@ -39,12 +38,12 @@ def run_script(script_name, description):
             print(result.stdout)
         
         elapsed = time.time() - start_time
-        print(f"✅ {description} completed successfully in {elapsed:.2f}s")
+        print(f"[OK] {description} completed successfully in {elapsed:.2f}s")
         return True
         
     except subprocess.CalledProcessError as e:
         elapsed = time.time() - start_time
-        print(f"❌ {description} failed after {elapsed:.2f}s")
+        print(f"[FAIL] {description} failed after {elapsed:.2f}s")
         print(f"Error code: {e.returncode}")
         if e.stdout:
             print("STDOUT:")
@@ -54,7 +53,7 @@ def run_script(script_name, description):
             print(e.stderr)
         return False
     except FileNotFoundError:
-        print(f"❌ Script not found: {script_name}")
+        print(f"[FAIL] Script not found: {script_name}")
         return False
 
 
@@ -62,40 +61,40 @@ def check_prerequisites():
     """Check for required input files."""
     # Check for cutpos.inp
     if not os.path.exists('cutpos.inp'):
-        print("❌ Missing required file: cutpos.inp")
+        print("[FAIL] Missing required file: cutpos.inp")
         return False
     
     # Check for layer input files
     layer_inp_files = glob.glob('layer*.inp')
     if len(layer_inp_files) < 1:
-        print(f"❌ Need at least 1 layer*.inp file, found {len(layer_inp_files)}")
+        print(f"[FAIL] Need at least 1 layer*.inp file, found {len(layer_inp_files)}")
         return False
     
     # Check for position files
     pos_files = glob.glob('layer_*_coords.dat')
     
     if len(pos_files) < 1:
-        print(f"❌ Need at least 1 layer_*_coords.dat file, found {len(pos_files)}")
+        print(f"[FAIL] Need at least 1 layer_*_coords.dat file, found {len(pos_files)}")
         print("Run cutpos.py first to extract layer coordinates")
         return False
     
-    print(f"✅ Found prerequisite files:")
+    print(f"[OK] Found prerequisite files:")
     print(f"   - cutpos.inp")
     print(f"   - {len(layer_inp_files)} layer input files: {layer_inp_files}")
     print(f"   - {len(pos_files)} position files: {pos_files}")
     
     # Check system type
     if len(pos_files) == 1:
-        print("   📝 Detected: Monolayer system (strain analysis only)")
+        print("   Detected: Monolayer system (strain analysis only)")
     else:
-        print(f"   📝 Detected: {len(pos_files)}-layer system (strain + interlayer spacing analysis)")
+        print(f"   Detected: {len(pos_files)}-layer system (strain + interlayer spacing analysis)")
     
     return True
 
 
 def main():
     """Main function to run the complete analysis workflow."""
-    print("🔬 LAYERED MATERIAL ANALYSIS WORKFLOW")
+    print("LAYERED MATERIAL ANALYSIS WORKFLOW")
     print("=" * 60)
     print(f"Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Working directory: {os.getcwd()}")
@@ -130,7 +129,7 @@ def main():
         if success:
             successful_steps += 1
         else:
-            print(f"\n❌ Workflow stopped due to failure in: {description}")
+            print(f"\n[FAIL] Workflow stopped due to failure in: {description}")
             break
     
     # Summary
@@ -143,13 +142,13 @@ def main():
     print(f"Finished at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     if successful_steps == total_steps:
-        print("🎉 All analysis steps completed successfully!")
+        print("All analysis steps completed successfully!")
         print("\nGenerated outputs:")
         
         # List interlayer spacing outputs
         ils_dirs = glob.glob("InterlayerSpacingMap/Layer_*")
         if ils_dirs:
-            print("  📁 InterlayerSpacingMap/")
+            print("  InterlayerSpacingMap/")
             for ils_dir in sorted(ils_dirs):
                 layer_name = os.path.basename(ils_dir)
                 print(f"     {layer_name}/")
@@ -159,7 +158,7 @@ def main():
         # List strain outputs
         strain_dirs = glob.glob("StrainMap/Layer_*")
         if strain_dirs:
-            print("  📁 StrainMap/")
+            print("  StrainMap/")
             for strain_dir in sorted(strain_dirs):
                 layer_name = os.path.basename(strain_dir)
                 print(f"     {layer_name}/")
@@ -167,7 +166,7 @@ def main():
                 print(f"       - hist_strain_{layer_name}.png (strain histogram)")
         return 0
     else:
-        print("❌ Workflow incomplete due to errors")
+        print("[FAIL] Workflow incomplete due to errors")
         return 1
 
 

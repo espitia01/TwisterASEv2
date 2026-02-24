@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 generate_plot_inputs.py - Generate input files for plotting scripts
 
@@ -12,55 +11,56 @@ import numpy as np
 
 
 def get_superlattice_vectors_from_structure():
-    """Get actual superlattice vectors from relaxed_structure.cif."""
-    # Read CIF file manually to avoid scipy import issues
-    import warnings
-    warnings.filterwarnings('ignore')
-    
+    """Get actual superlattice vectors from the structure CIF file.
+    Prioritizes cut_structure.cif (if a cut was performed), then falls back
+    to relaxed_structure.cif or superlattice.cif (full superlattice).
+    Uses fast manual CIF header parsing (only reads cell parameters, not atoms)."""
     try:
-        from ase.io import read
-        # Try to read from relaxed_structure.cif first
-        if os.path.exists('relaxed_structure.cif'):
-            atoms = read('relaxed_structure.cif')
-            cell = atoms.get_cell()
-            # Return cell vectors in Angstroms
-            return cell[:3]
-        elif os.path.exists('superlattice.cif'):
-            atoms = read('superlattice.cif')
-            cell = atoms.get_cell()
-            return cell[:3]
-        else:
-            raise FileNotFoundError("Could not find relaxed_structure.cif or superlattice.cif")
-    except (ValueError, ImportError) as e:
-        # Fallback: parse CIF manually
-        print(f"Warning: ASE import issue ({e}), using manual CIF parsing")
         return parse_cif_cell_manually()
+    except Exception as e:
+        print(f"Warning: Manual CIF parsing failed ({e}), falling back to ASE read")
+        from ase.io import read
+        for cif in ['cut_structure.cif', 'relaxed_structure.cif', 'superlattice.cif']:
+            if os.path.exists(cif):
+                atoms = read(cif)
+                return atoms.get_cell()[:3]
+        raise FileNotFoundError("Could not find cut_structure.cif, relaxed_structure.cif, or superlattice.cif")
 
 
 def parse_cif_cell_manually():
-    """Manually parse CIF file to extract cell parameters."""
-    cif_file = 'relaxed_structure.cif' if os.path.exists('relaxed_structure.cif') else 'superlattice.cif'
+    """Manually parse CIF file header to extract cell parameters.
+    Only reads until all 6 cell parameters are found, avoiding full file read.
+    Prioritizes cut_structure.cif (matches actual analysis data)."""
+    cif_file = None
+    for candidate in ['cut_structure.cif', 'relaxed_structure.cif', 'superlattice.cif']:
+        if os.path.exists(candidate):
+            cif_file = candidate
+            break
     
-    with open(cif_file, 'r') as f:
-        lines = f.readlines()
+    if cif_file is None:
+        raise FileNotFoundError("No CIF file found (cut_structure.cif, relaxed_structure.cif, or superlattice.cif)")
     
-    # Extract cell parameters from CIF
     cell_length_a = cell_length_b = cell_length_c = None
     cell_angle_alpha = cell_angle_beta = cell_angle_gamma = None
     
-    for line in lines:
-        if '_cell_length_a' in line:
-            cell_length_a = float(line.split()[1])
-        elif '_cell_length_b' in line:
-            cell_length_b = float(line.split()[1])
-        elif '_cell_length_c' in line:
-            cell_length_c = float(line.split()[1])
-        elif '_cell_angle_alpha' in line:
-            cell_angle_alpha = float(line.split()[1])
-        elif '_cell_angle_beta' in line:
-            cell_angle_beta = float(line.split()[1])
-        elif '_cell_angle_gamma' in line:
-            cell_angle_gamma = float(line.split()[1])
+    with open(cif_file, 'r') as f:
+        for line in f:
+            if '_cell_length_a' in line:
+                cell_length_a = float(line.split()[1])
+            elif '_cell_length_b' in line:
+                cell_length_b = float(line.split()[1])
+            elif '_cell_length_c' in line:
+                cell_length_c = float(line.split()[1])
+            elif '_cell_angle_alpha' in line:
+                cell_angle_alpha = float(line.split()[1])
+            elif '_cell_angle_beta' in line:
+                cell_angle_beta = float(line.split()[1])
+            elif '_cell_angle_gamma' in line:
+                cell_angle_gamma = float(line.split()[1])
+            # Stop early once all parameters found
+            if all(v is not None for v in [cell_length_a, cell_length_b, cell_length_c,
+                                            cell_angle_alpha, cell_angle_beta, cell_angle_gamma]):
+                break
     
     # Convert to Cartesian vectors
     a = cell_length_a
@@ -123,42 +123,46 @@ def write_plot_input(f, alat, A1, A2, A3, spcs, repeat_units=(2, 2), shift_origi
     f.write("rotate_plot = False\n")
     f.write("rotate_angle = 0\n")
     
-    # Calculate xlim and ylim based on actual repeat_units and lattice vectors
-    # The data positions are: pos = i*A1 + j*A2 - origin
-    # where origin = shift_origin[0]*A1 + shift_origin[1]*A2
-    # With padding=2, i ranges from -padding to repeat_units[0] + padding
-    padding = 2
+    # Calculate xlim and ylim to frame the visible repeat_units region.
+    #
+    # The plotting scripts do:
+    #   1. repeat_atoms_padded: tile from -padding to rep+padding, shifted by
+    #      origin = shift_origin[0]*A1c + shift_origin[1]*A2c
+    #      So pos_tiled = pos + i*A1c + j*A2c - origin
+    #   2. min-shift: pos -= min(pos), xl -= min_x, yl -= min_y
+    #
+    # The visible region (repeat_units cells) in the pre-shift coordinate
+    # system spans from -origin to rep*A1c + rep*A2c - origin.
+    # Since the min-shift adjusts both data and limits equally, we just
+    # need the xlim/ylim to match the visible region in pre-shift coords.
     repeat_x, repeat_y = repeat_units
     shift_x, shift_y = shift_origin
     
-    # Calculate the origin shift
-    origin = shift_x * A1 * alat + shift_y * A2 * alat
+    # Cartesian lattice vectors
+    A1c = A1 * alat
+    A2c = A2 * alat
     
-    # Calculate the extent of the supercell with padding
-    min_i = -padding
-    max_i = repeat_x + padding
-    min_j = -padding
-    max_j = repeat_y + padding
+    # Origin shift applied by the plotting scripts
+    origin = shift_x * A1c + shift_y * A2c
     
-    # Calculate corner positions in Cartesian coordinates
-    # pos = i*A1 + j*A2 - origin
+    # The visible region corners in pre-shift coordinates:
+    # i*A1c + j*A2c - origin for i in [0, repeat_x], j in [0, repeat_y]
     corners_x = []
     corners_y = []
-    for i in [min_i, max_i]:
-        for j in [min_j, max_j]:
-            pos = i * A1 * alat + j * A2 * alat - origin
+    for i in [0, repeat_x]:
+        for j in [0, repeat_y]:
+            pos = i * A1c + j * A2c - origin
             corners_x.append(pos[0])
             corners_y.append(pos[1])
     
-    # Get min/max with small padding
     min_x = min(corners_x)
     max_x = max(corners_x)
     min_y = min(corners_y)
     max_y = max(corners_y)
     
     # Add 5% padding for visualization
-    x_range = max_x - min_x
-    y_range = max_y - min_y
+    x_range = max_x - min_x if max_x > min_x else 1.0
+    y_range = max_y - min_y if max_y > min_y else 1.0
     xlim_min = int(min_x - 0.05 * x_range)
     xlim_max = int(max_x + 0.05 * x_range)
     ylim_min = int(min_y - 0.05 * y_range)

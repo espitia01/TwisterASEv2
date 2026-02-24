@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 import numpy as np
 import os
 from scipy.interpolate import griddata
@@ -9,6 +7,9 @@ from matplotlib import cm
 from matplotlib.colors import LinearSegmentedColormap
 from scipy import spatial
 from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.patches import Polygon
+from matplotlib.path import Path
+import matplotlib.patches as mpatches
 
 
 def readinp_map(file_name):
@@ -106,6 +107,22 @@ def placeaxes(A1, A2):
     Sum = A1 + A2
     plt.plot([ A2[0], Sum[0]  ], [A2[1], Sum[1]], color = "grey", lw = 2.1)
     plt.plot([ A1[0], Sum[0]], [A1[1], Sum[1]], color = "grey", lw = 2.1)
+
+
+def fold_into_cell(pos, A1, A2):
+    """
+    Fold Cartesian positions into the unit cell defined by A1 and A2.
+    Returns positions with fractional parts in [0, 1) along A1 and A2.
+    """
+    cell2d = np.array([[A1[0], A2[0]],
+                       [A1[1], A2[1]]])
+    frac = np.linalg.solve(cell2d, pos[:, :2].T).T
+    frac = frac % 1.0
+    cart = frac[:, 0:1] * A1[:2] + frac[:, 1:2] * A2[:2]
+    result = pos.copy()
+    result[:, 0] = cart[:, 0]
+    result[:, 1] = cart[:, 1]
+    return result
 
 
 def repeat_data(w_xy,rep,A1,A2, shift_origin):
@@ -219,6 +236,9 @@ def process_interlayer_directory(input_dir, show_unit_cell=False):
             A1 = Rotate_one(A1, axis, angle)
             A2 = Rotate_one(A2, axis, angle)
         
+        pos_bot = fold_into_cell(pos_bot, A1, A2)
+        pos_top = fold_into_cell(pos_top, A1, A2)
+        
         pos_top_tree = spatial.cKDTree(pos_top)
         dist, ind = pos_top_tree.query(pos_bot)
         
@@ -234,21 +254,32 @@ def process_interlayer_directory(input_dir, show_unit_cell=False):
         
         arr_xy_sc = repeat_data_padded(arr_xyc, repeat, A1, A2, shift_origin, padding=2)
         
-        # Shift data so minimum position is at origin
-        min_x = np.min(arr_xy_sc[:, 0])
-        min_y = np.min(arr_xy_sc[:, 1])
-        arr_xy_sc[:, 0] -= min_x
-        arr_xy_sc[:, 1] -= min_y
+        # Shift data so the visible region starts near origin
+        # The visible region corner (0,0) in pre-shift coords is at -origin
+        origin = shift_origin[0]*A1 + shift_origin[1]*A2
+        shift_x = -origin[0]
+        shift_y = -origin[1]
+        arr_xy_sc[:, 0] -= shift_x
+        arr_xy_sc[:, 1] -= shift_y
         
-        # Adjust plot limits accordingly
-        xl = [xl[0] - min_x, xl[1] - min_x]
-        yl = [yl[0] - min_y, yl[1] - min_y]
+        # Compute visible region limits
+        corners_x = []
+        corners_y = []
+        for ii in [0, repeat[0]]:
+            for jj in [0, repeat[1]]:
+                c = ii*A1 + jj*A2
+                corners_x.append(c[0])
+                corners_y.append(c[1])
+        x_range = max(corners_x) - min(corners_x)
+        y_range = max(corners_y) - min(corners_y)
+        xl = [min(corners_x) - 0.05*x_range, max(corners_x) + 0.05*x_range]
+        yl = [min(corners_y) - 0.05*y_range, max(corners_y) + 0.05*y_range]
         
         layer_name = os.path.basename(input_dir)
         plot_scatter_publication(arr_xy_sc, A1, A2, xl, yl, place_dots, fnt_sz, tick_labsz, 
-                                show_unit_cell, layer_name, show=False)
+                                show_unit_cell, layer_name, repeat=repeat, show=False)
         plot_interpolated_publication(arr_xy_sc, A1, A2, xl, yl, place_dots, fnt_sz, tick_labsz, 
-                                     show_unit_cell, layer_name, show=False)
+                                     show_unit_cell, layer_name, repeat=repeat, show=False)
         
         print(f"  - Generated plots in {input_dir}")
         
@@ -262,7 +293,7 @@ def main():
     """Main function to process all interlayer spacing directories."""
     print("Processing interlayer spacing analysis...")
     
-    show_unit_cell = False
+    show_unit_cell = True
     
     base_path = '.'
     ils_path = os.path.join(base_path, 'InterlayerSpacingMap')
@@ -343,7 +374,20 @@ def rep_cell(pos,a_1, a_2):
 
 
 
-def plot_interpolated_publication(arr_xyc, A1, A2, xl, yl, place_dots, fnt_sz, tick_labsz, show_unit_cell, layer_name, show=False):
+def _make_repeat_clip(A1, A2, repeat, ax):
+    """
+    Return a Polygon patch covering exactly repeat[0]*A1 + repeat[1]*A2 cells.
+    Used as a clip path so data outside the parallelogram is hidden.
+    """
+    O  = np.array([0.0, 0.0])
+    P1 = repeat[0] * A1[:2]
+    P2 = repeat[1] * A2[:2]
+    P3 = P1 + P2
+    verts = np.array([O, P1, P3, P2, O])
+    return Polygon(verts, closed=True, transform=ax.transData)
+
+
+def plot_interpolated_publication(arr_xyc, A1, A2, xl, yl, place_dots, fnt_sz, tick_labsz, show_unit_cell, layer_name, repeat=None, show=False):
     """
     Publication-quality interpolated plot with coolwarm colormap and unit cell.
     """
@@ -412,7 +456,7 @@ def plot_interpolated(arr_xyc, A1, A2, xl, yl, place_dots, fnt_sz, tick_labsz, s
 
 
 
-def plot_scatter_publication(arr_xy_sc, A1, A2, xl, yl, place_dots, fnt_sz, tick_labsz, show_unit_cell, layer_name, show=False):
+def plot_scatter_publication(arr_xy_sc, A1, A2, xl, yl, place_dots, fnt_sz, tick_labsz, show_unit_cell, layer_name, repeat=None, show=False):
     """
     Publication-quality scatter plot with coolwarm colormap and unit cell.
     """

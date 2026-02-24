@@ -73,6 +73,8 @@ class Layer:
                 self.unitcell_ortho.set_tags(data['atom_tags_ortho'])
             
             self.unitcell_ortho.translate([0, 0, data['translate_z']])
+        # No else: if atom_positions_ortho is not in the input file, this is a
+        # purely hexagonal layer and no orthorhombic cell should be generated.
     
     def _rotate_unitcell(self):
         """Apply twist angle rotation to unit cell."""

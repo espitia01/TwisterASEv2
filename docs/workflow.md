@@ -25,15 +25,14 @@ Create the following files in your working directory:
 MySystem/
 ├── twisterase.inp    # Main configuration
 ├── layer1.inp        # Bottom layer
-├── layer2.inp        # Second layer
-├── ...
-└── potential files   # .sw, .KC, .tersoff, etc.
+├── layer2.inp        # Second layer (add more as needed)
+└── potential files   # .rebo, .KC, .sw, .tersoff, etc.
 ```
 
 ### 1.2 Run TwisterASE
 
 ```bash
-cd Test/MySystem
+cd Examples/MySystem
 python ../../Src/twisterase.py
 ```
 
@@ -42,9 +41,9 @@ python ../../Src/twisterase.py
 | File | Description |
 |------|-------------|
 | `superlattice.cif` | Full twisted structure (for visualization) |
-| `superlattice_lammps.cif` | LAMMPS-compatible CIF |
-| `structure.lammps` | LAMMPS data file |
-| `lammps.in` | LAMMPS input script |
+| `structure.lammps` | LAMMPS data file (`atom_style atomic`) |
+| `lammps.in` | LAMMPS input script (ready to run) |
+| `structure_ortho.lammps` | Orthorhombic LAMMPS data file (TMD ortho only) |
 
 ---
 
@@ -58,45 +57,61 @@ lmp_serial -in lammps.in
 
 Or for parallel execution:
 ```bash
-mpirun -np 4 lmp_mpi -in lammps.in
+mpirun -np 8 lmp_mpi -in lammps.in
 ```
 
 ### 2.2 Output Files
 
 | File | Description |
 |------|-------------|
-| `dump.minimization` | Trajectory during minimization |
-| `dump.Final` | Final relaxed structure |
+| `dump.minimization` | Trajectory during minimization (every 400 steps) |
+| `dump.Final` | Final relaxed structure (sorted by atom id) |
 | `log.lammps` | LAMMPS log file |
 
 ### 2.3 Required LAMMPS Packages
 
 Ensure your LAMMPS build includes:
-- `MANYBODY` (for sw/mod, tersoff)
-- `INTERLAYER` (for kolmogorov/crespi/z)
-- `MOLECULE` (for full atom style)
+- `MANYBODY` — for `sw/mod`, `tersoff`, `rebo`
+- `INTERLAYER` — for `kolmogorov/crespi/z`, `ilp/graphene/hbn`
 
 ---
 
-## Step 3: Post-Processing
+## Step 3: Layer Extraction
 
-### 3.1 Create cutpos.inp
+### 3.1 Create `cutpos.inp`
 
-```python
+```
 n_layers = 2
 lammps_dump = "dump.Final"
+orthocell_12atom_sw = False
 ```
 
-### 3.2 Extract Layers
+For orthorhombic TMD systems set `orthocell_12atom_sw = True`.
+
+To cut to a smaller supercell (optional):
+```
+n_layers = 2
+lammps_dump = "dump.Final"
+orthocell_12atom_sw = False
+lattice_parameters = [3.28, 3.28, 35.0]
+superlattice_vectors_block
+4 0 0
+0 4 0
+0 0 1
+```
+
+### 3.2 Run cutpos
 
 ```bash
 python ../../Src/cutpos.py
 ```
 
 **Output:**
-- `relaxed_structure.cif` - Full relaxed structure
-- `layer_1.cif`, `layer_2.cif`, ... - Individual layers
-- `layer_1_coords.dat`, `layer_2_coords.dat`, ... - Coordinate files
+| File | Description |
+|------|-------------|
+| `relaxed_structure.cif` | Full relaxed structure |
+| `layer_1.cif`, `layer_2.cif`, ... | Individual layer CIF files |
+| `layer_1_coords.dat`, `layer_2_coords.dat`, ... | Coordinate files for analysis |
 
 ---
 
@@ -108,20 +123,20 @@ python ../../Src/cutpos.py
 python ../../Src/run_analysis.py
 ```
 
-This runs:
-1. Directory setup
-2. Input file generation
-3. Interlayer spacing analysis
-4. Strain analysis
+This sequentially runs:
+1. `setup_analysis_dirs.py` — creates `InterlayerSpacingMap/` and `StrainMap/` directories and copies coordinate files
+2. `generate_plot_inputs.py` — writes `input` config files for each analysis subdirectory
+3. `plot_interlayer_spacing.py` — scatter and interpolated interlayer spacing maps (multi-layer only)
+4. `plot_strains.py` — per-layer strain maps and histograms
 
 ### 4.2 Output Structure
 
 ```
 MySystem/
-├── InterlayerSpacingMap/
+├── InterlayerSpacingMap/        # (bilayer and multilayer only)
 │   └── Layer_1-2/
-│       ├── scatter.png
-│       └── interpolated.png
+│       ├── scatter_Layer_1-2.png
+│       └── interpolated_Layer_1-2.png
 └── StrainMap/
     ├── Layer_1/
     │   ├── strain_Layer_1.png
@@ -131,6 +146,8 @@ MySystem/
         └── hist_strain_Layer_2.png
 ```
 
+> **Note for graphene**: `plot_strains.py` automatically detects single-species layers and filters to one z-sublayer before computing the strain KDTree, preventing spurious interlayer C-C distances from corrupting the strain calculation.
+
 ---
 
 ## Step 5: DFT Conversion (Optional)
@@ -138,13 +155,13 @@ MySystem/
 ### SIESTA Format
 
 ```bash
-python ../../Src/cif2siesta.py layer_1.cif layer_1.fdf
+python ../../Src/cif2siesta.py relaxed_structure.cif output.fdf
 ```
 
 ### Quantum ESPRESSO Format
 
 ```bash
-python ../../Src/cif2qe.py layer_1.cif layer_1.in
+python ../../Src/cif2qe.py relaxed_structure.cif output.in
 ```
 
 ---
@@ -155,6 +172,7 @@ python ../../Src/cif2qe.py layer_1.cif layer_1.in
 
 ```bash
 # 1. Generate structure
+cd Examples/MySystem
 python ../../Src/twisterase.py
 
 # 2. Run LAMMPS
@@ -171,7 +189,8 @@ python ../../Src/run_analysis.py
 
 | Issue | Solution |
 |-------|----------|
-| LAMMPS potential error | Check potential files are in working directory |
-| Missing atom types | Verify tags are unique across all layers |
-| Wrong interlayer spacing | Check translate_z values in layer files |
-| Structure not periodic | Verify superlattice vectors match twist angle |
+| `potential file not found` | Copy potential files (`.KC`, `.rebo`, `.sw`, `.tersoff`) to working directory |
+| `Tag mismatch` in cutpos | Verify tags in `layer*.inp` match what was used to generate `structure.lammps` |
+| Wrong interlayer spacing | Check `translate_z` values in `layer*.inp` |
+| `Neighbor list overflow` | Add `neigh_modify one 5000` after `neighbor` line in `lammps.in` |
+| Strain map looks wrong (graphene) | Ensure `plot_strains.py` is up to date — single-species sublayer filter is applied automatically |

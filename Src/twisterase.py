@@ -65,17 +65,23 @@ def main():
     
     if has_orthocell:
         hex_sl_vectors = superlattice.get_cell()
-        ortho_unitcell_vectors = layers[0].unitcell_ortho.cell
-        sl_vectors_cart_ortho = compute_ortho_supercell_matrix(
-            hex_sl_vectors, ortho_unitcell_vectors
-        )
         
         for layer in layers:
-            layer.create_supercell_ortho(sl_vectors_cart_ortho)
+            if layer.has_orthocell:
+                sl_vectors_cart_ortho = compute_ortho_supercell_matrix(
+                    hex_sl_vectors, layer.unitcell_ortho.cell
+                )
+                layer.create_supercell_ortho(sl_vectors_cart_ortho)
         
-        superlattice_ortho = layers[0].supercell_ortho.copy()
-        for ilayer in range(1, n_layers):
-            superlattice_ortho += layers[ilayer].supercell_ortho
+        first_ortho = True
+        superlattice_ortho = None
+        for layer in layers:
+            if layer.supercell_ortho is not None:
+                if first_ortho:
+                    superlattice_ortho = layer.supercell_ortho.copy()
+                    first_ortho = False
+                else:
+                    superlattice_ortho += layer.supercell_ortho
         
         #write('superlattice_ortho.cif', superlattice_ortho)
         #print(f"Written superlattice_ortho.cif with {len(superlattice_ortho)} atoms")

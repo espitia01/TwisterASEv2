@@ -1,60 +1,53 @@
 # Input File Reference
 
-This document describes the format and parameters for TwisterASE input files.
+This document describes the format and parameters for all TwisterASE input files.
 
 ---
 
 ## Main Configuration: `twisterase.inp`
 
-The main configuration file controls the overall structure generation.
+Controls overall structure generation. All scripts (`twisterase.py`, `cutpos.py`, `run_analysis.py`) must be run from the directory containing this file.
 
-### Required Parameters
+### Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `n_layers` | int | Number of layers in the heterostructure |
+| `hex_lattice` | bool | `True` for hexagonal geometry (required for `i_value`/`mn_values`) |
+| `i_value` | int | Commensurate supercell index — sets twist angle for layers 1 & 2 |
+| `mn_values` | [int, int] | Alternative twist angle via [m, n] integers |
+| `lattice_parameters` | [float, float, float] | Lattice constants [a, b, c] in Å — used with `superlattice_vectors_block` |
+| `superlattice_vectors_block` | 3×3 | Superlattice vectors in units of `lattice_parameters` |
+| `write_lammps` | bool | Generate `structure.lammps` and `lammps.in` |
+| `interlayer_potential` | str | KC potential filename (e.g. `"CC.KC"`, `"MoWSSe.KC"`) |
 
-### Twist Angle Specification
+> **Twist angle**: Use either `i_value` or `mn_values` (not both). When set, the superlattice vectors are computed automatically from the layer 1 unit cell and `lattice_parameters`/`superlattice_vectors_block` are not needed. Only layers 1 and 2 get their twist angles overridden; layers 3+ keep the `twist_angle` from their own file.
 
-Choose **one** of the following methods:
+### Example — Twisted Bilayer Graphene (`i_value`)
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `i_value` | int | Commensurate supercell index (hexagonal lattice only) |
-| `mn_values` | [int, int] | Alternative twist angle specification [m, n] |
+```
+n_layers = 2
+hex_lattice = True
+i_value = 9
 
-### Lattice Parameters
+write_lammps = True
+interlayer_potential = "CC.KC"
+```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `hex_lattice` | bool | Use hexagonal lattice (True) or custom |
-| `lattice_parameters` | [float, float, float] | Lattice constants [a, b, c] in Å |
-| `superlattice_vectors_block` | 3×3 matrix | Superlattice transformation vectors |
+### Example — Custom Superlattice Vectors
 
-### Output Options
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `write_lammps` | bool | Generate LAMMPS structure and input files |
-| `interlayer_potential` | str | Interlayer potential file (e.g., "C.KC", "MoWSSe.KC") |
-
-### Example
-
-```python
+```
 n_layers = 2
 hex_lattice = True
 
-i_value = 7  # ~21.8° twist angle
-
-lattice_parameters = [3.28, 3.28, 35.0]
-
+lattice_parameters = [3.3, 3.3, 35.0]
 superlattice_vectors_block
-1 0 0
-0 1 0
-0 0 1
+10.0  0.0  0.0
+0.0  10.0  0.0
+0.0   0.0  1.0
 
 write_lammps = True
-interlayer_potential = "WSe2.KC"
+interlayer_potential = "MoWSSe.KC"
 ```
 
 ---
@@ -63,97 +56,92 @@ interlayer_potential = "WSe2.KC"
 
 Each layer requires a separate input file (`layer1.inp`, `layer2.inp`, etc.).
 
-### Required Parameters
+### Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `twist_angle` | float | Rotation angle in degrees (may be overridden by i_value) |
-| `lattice_parameters` | [float, float, float] | Layer lattice constants [a, b, c] |
-| `lattice_vectors_block` | 3×3 matrix | Unit cell vectors in fractional coordinates |
-| `start_atom_positions_block` | list | Atom positions with optional tags |
-
-### Optional Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `translate_z` | float | Vertical offset in Å |
-| `strain_percentage` | [float, float, float] | Applied strain [εx, εy, εz] |
-| `intralayer_potential` | str | Potential file for this layer |
-
-### Orthorhombic Basis (TMD only)
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `orthocell_transformation_matrix` | 3×3 matrix | Transformation to orthorhombic basis |
-| `start_atom_positions_ortho_block` | list | Orthorhombic basis atom positions |
+| `twist_angle` | float | Rotation angle in degrees (overridden by `i_value`/`mn_values` for layers 1 & 2) |
+| `lattice_parameters` | [float, float, float] | Layer lattice constants [a, b, c] in Å |
+| `translate_z` | float | Vertical offset in Å — sets interlayer spacing |
+| `lattice_vectors_block` | 3×3 | Unit cell vectors in fractional coordinates (rows = a1, a2, a3) |
+| `start_atom_positions_block` | block | Atom positions in scaled coordinates |
+| `end_atom_positions_block` | — | Closes the atom block |
+| `intralayer_potential` | str | Potential filename for this layer |
+| `orthocell_transformation_matrix` | 3×3 | Transform from hex to orthorhombic basis (TMD ortho only) |
+| `start_atom_positions_ortho_block` | block | Orthorhombic basis atom positions (TMD ortho only) |
+| `end_atom_positions_ortho_block` | — | Closes the ortho atom block |
 
 ### Atom Position Format
 
 ```
 start_atom_positions_block
-Symbol  x  y  z  [tag]
+Symbol  x  y  z  tag
+...
 end_atom_positions_block
 ```
 
-- **Symbol**: Element symbol (e.g., W, Se, B, N, C)
-- **x, y, z**: Fractional coordinates
-- **tag** (optional): Integer atom type identifier
+- **Symbol**: Element symbol (e.g. `C`, `W`, `Se`, `B`, `N`)
+- **x, y, z**: Fractional (scaled) coordinates
+- **tag**: Unique integer atom type identifier across all layers
 
-### Examples
+### Example — Graphene Layer
 
-#### Graphene Layer
-```python
+```
 twist_angle = 0.0
 lattice_parameters = [2.46, 2.46, 35.0]
 
 lattice_vectors_block
-1.0   0.0       0.0
--0.5  0.866025  0.0
-0.0   0.0       1.0
+1.0 0.0 0.0
+0.5 0.8660254038 0.0
+0.0 0.0 1.0
 
 start_atom_positions_block
-C  0.0    0.0    0.0  1
-C  0.333  0.666  0.0  2
+C   0.000000000   0.000000000   0.5  1
+C   0.666666666   0.666666666   0.5  2
 end_atom_positions_block
 
-intralayer_potential = "C.rebo"
+translate_z = 0.0
+intralayer_potential = "CH.rebo"
 ```
 
-#### TMD Layer (Hexagonal)
-```python
+### Example — TMD Layer (Hexagonal, MoSe2)
+
+```
 twist_angle = 0.0
-lattice_parameters = [3.28, 3.28, 35.0]
-translate_z = 0.0
+lattice_parameters = [3.3, 3.3, 35.0]
 
 lattice_vectors_block
--0.01990469  0.99980188  0.0
--0.87580618  0.48266298  0.0
-0.0  0.0  1.0
+1.0 0.0 0.0
+0.5 0.8660254038 0.0
+0.0 0.0 1.0
 
 start_atom_positions_block
-W   0.0          0.0          0.04206802725  1
-Se  0.333333333  0.333333333  0.02546802725  2
-Se  0.333333333  0.333333333  0.05866802725  3
+Mo  0.0          0.0          0.168272109  1
+Se  0.666666667  0.666666667  0.124125946  2
+Se  0.666666667  0.666666667  0.212418272  3
 end_atom_positions_block
 
+translate_z = 0.0
 intralayer_potential = "tmd.sw"
 ```
 
-#### hBN Layer
-```python
+### Example — hBN Layer
+
+```
 twist_angle = 0.0
-lattice_parameters = [2.4967, 2.4967, 100.0]
+lattice_parameters = [2.504, 2.504, 35.0]
 
 lattice_vectors_block
--0.01990469  0.99980188  0.0
--0.87580618  0.48266298  0.0
-0.0  0.0  1.0
+1.0 0.0 0.0
+0.5 0.8660254038 0.0
+0.0 0.0 1.0
 
 start_atom_positions_block
 B  0.0          0.0          0.026  7
 N  0.666666667  0.666666667  0.026  8
 end_atom_positions_block
 
+translate_z = 0.0
 intralayer_potential = "BNC.tersoff"
 ```
 
@@ -161,39 +149,66 @@ intralayer_potential = "BNC.tersoff"
 
 ## Post-Processing: `cutpos.inp`
 
-Configuration for layer extraction from relaxed structures.
+Configuration for layer extraction from relaxed LAMMPS dump files.
 
 ### Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `n_layers` | int | Number of layers to extract |
-| `lammps_dump` | str | LAMMPS dump file to process (default: "dump.Final") |
-| `orthocell_12atom_sw` | bool | Use 12-atom orthorhombic basis |
-| `cut` | float | Optional z-coordinate to cut structure |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `n_layers` | int | required | Number of layers to extract |
+| `lammps_dump` | str | `"dump.Final"` | LAMMPS dump file to process |
+| `orthocell_12atom_sw` | bool | `False` | Use 12-atom orthorhombic basis for layer assignment |
+| `lattice_parameters` | [float, float, float] | None | Lattice constants for optional cut cell |
+| `superlattice_vectors_block` | 3×3 | None | Cut to smaller supercell (optional) |
 
-### Example
+### Example — Basic
 
-```python
+```
 n_layers = 2
 lammps_dump = "dump.Final"
 orthocell_12atom_sw = False
+```
+
+### Example — With Supercell Cut
+
+```
+n_layers = 2
+lammps_dump = "dump.Final"
+orthocell_12atom_sw = False
+lattice_parameters = [3.28, 3.28, 35.0]
+superlattice_vectors_block
+4 0 0
+0 4 0
+0 0 1
 ```
 
 ---
 
 ## Atom Type Tags
 
-### Importance of Tags
+Tags identify atom types across layers and must be **unique** for each distinct atom type in the system. They are used to:
+- Assign LAMMPS atom types in `structure.lammps`
+- Map atoms back to layers in `cutpos.py`
+- Generate correct `pair_coeff` lines in `lammps.in`
 
-Tags identify atom types across layers and must be **unique** for each distinct atom type in the system.
+### Tag Conventions by System
 
-### Convention
+**Graphene bilayer** (2 atoms/layer):
+- Layer 1: C→1, C→2
+- Layer 2: C→3, C→4
 
-For a 4-layer hBN-TMD-TMD-hBN system:
-- **TMD Layer 1**: tags 1, 2, 3 (W, Se_lower, Se_upper)
-- **TMD Layer 2**: tags 4, 5, 6 (W, Se_lower, Se_upper)
-- **hBN Layer 1**: tags 7, 8 (B, N) - auto-assigned
-- **hBN Layer 2**: tags 9, 10 (B, N) - auto-assigned
+**TMD bilayer, hexagonal** (3 atoms/layer):
+- Layer 1: Mo→1, Se→2, Se→3
+- Layer 2: Mo→4, Se→5, Se→6
 
-**Note**: hBN layer tags are automatically assigned after all TMD types.
+**TMD bilayer, orthorhombic** (12 atoms/layer):
+- Layer 1: tags 1–12
+- Layer 2: tags 13–24
+
+**hBN + TMD (hex), 4-layer stack**:
+- TMD Layer 1: tags 1–3; TMD Layer 2: tags 4–6
+- hBN below: B→7, N→8; hBN above: B→9, N→10
+
+**hBN + TMD (ortho), 4-layer stack**:
+- TMD Layer 1: tags 1–12; TMD Layer 2: tags 13–24
+- hBN below: B→25, N→26; hBN above: B→27, N→28

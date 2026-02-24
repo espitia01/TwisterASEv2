@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 cif2siesta.py - Convert CIF files to SIESTA input format
 
@@ -121,18 +120,18 @@ def main():
     print(f"Reading: {input_cif}")
     try:
         atoms = read(input_cif)
-        print(f"  ✅ Read {len(atoms)} atoms")
+        print(f"  Read {len(atoms)} atoms")
         print(f"  Elements: {sorted(set(atoms.get_chemical_symbols()))}")
     except Exception as e:
-        print(f"❌ Error reading CIF file: {e}")
+        print(f"[FAIL] Error reading CIF file: {e}")
         sys.exit(1)
     
     print(f"\nWriting: {output_fdf}")
     try:
         write_siesta_fdf(atoms, output_fdf)
-        print(f"  ✅ SIESTA input file written")
+        print(f"  SIESTA input file written")
     except Exception as e:
-        print(f"❌ Error writing FDF file: {e}")
+        print(f"[FAIL] Error writing FDF file: {e}")
         sys.exit(1)
     
     print(f"\n{'='*60}")

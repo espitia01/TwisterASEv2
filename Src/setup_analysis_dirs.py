@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 setup_analysis_dirs.py - Setup directory structure for analysis
 

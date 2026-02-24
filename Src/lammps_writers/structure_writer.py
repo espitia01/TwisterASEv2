@@ -38,10 +38,16 @@ def write_structure_file(filename, layers, use_orthocell=False):
     material_info = detect_system_materials(layers)
     
     # Combine layers into single structure
-    if use_orthocell and layers[0].has_orthocell:
-        combined = layers[0].supercell_ortho.copy()
-        for i in range(1, len(layers)):
-            combined += layers[i].supercell_ortho
+    if use_orthocell:
+        first = True
+        combined = None
+        for layer in layers:
+            sc = layer.supercell_ortho if layer.supercell_ortho is not None else layer.supercell
+            if first:
+                combined = sc.copy()
+                first = False
+            else:
+                combined += sc
     else:
         combined = layers[0].supercell.copy()
         for i in range(1, len(layers)):
@@ -51,9 +57,22 @@ def write_structure_file(filename, layers, use_orthocell=False):
     old_lattice_vectors = np.array(combined.get_cell())
     lattice_vectors = restricted_triclinic(old_lattice_vectors)
     
+    # Determine format: use atomic for mixed hBN+TMD with ortho hBN, full for pure hBN
+    has_hbn = material_info['has_hbn']
+    has_tmd = material_info['has_tmd'] or material_info['has_graphene']
+    is_mixed_ortho_hbn = has_hbn and has_tmd and use_orthocell
+    
     # Write appropriate format
-    if material_info['requires_full_format']:
-        # hBN present: use full format with molecule ID and charge
+    if has_hbn and not has_tmd:
+        # Pure hBN: use full format with molecule ID and charge
+        pos_new = _write_full_format(filename, layers, combined, lattice_vectors, use_orthocell)
+    elif is_mixed_ortho_hbn:
+        # Mixed hBN+TMD with ortho: use atomic format
+        # Set correct tags on combined object from layer ortho tags
+        combined = _set_combined_tags(combined, layers, use_orthocell)
+        pos_new = _write_atomic_format(filename, combined, lattice_vectors)
+    elif material_info['requires_full_format']:
+        # hBN present but not ortho: use full format
         pos_new = _write_full_format(filename, layers, combined, lattice_vectors, use_orthocell)
     else:
         # TMD/Graphene only: use atomic format
@@ -70,6 +89,20 @@ def write_structure_file(filename, layers, use_orthocell=False):
     print(f"Written superlattice_lammps.cif with {len(struct_new)} atoms")
     
     return material_info
+
+
+def _set_combined_tags(combined, layers, use_orthocell):
+    """
+    Set correct atom tags on the combined Atoms object for mixed hBN+TMD systems.
+    make_supercell preserves tags from the unitcell for all material types.
+    """
+    all_tags = []
+    for layer in layers:
+        layer_atoms = layer.supercell_ortho if (use_orthocell and layer.has_orthocell) else layer.supercell
+        all_tags.extend(layer_atoms.get_tags().tolist())
+    
+    combined.set_tags(all_tags)
+    return combined
 
 
 def _write_atomic_format(filename, atoms, lattice_vectors):
@@ -131,114 +164,130 @@ def _write_full_format(filename, layers, combined, lattice_vectors, use_orthocel
     atom_types = []
     charges = []
     
-    # First pass: determine max TMD type and count hBN layers
-    # Use tags from layer input files, not from supercell (which may not preserve tags)
+    def _get_sc(layer):
+        return layer.supercell_ortho if (use_orthocell and layer.has_orthocell) else layer.supercell
+    
+    def _get_tags(layer):
+        if use_orthocell and layer.has_orthocell and layer.layer_data.get('atom_tags_ortho'):
+            return layer.layer_data.get('atom_tags_ortho')
+        return layer.layer_data.get('atom_tags')
+    
+    # First pass: determine max TMD type
     max_tmd_type = 0
-    hbn_layer_indices = []
-    for layer_idx, layer in enumerate(layers):
-        if use_orthocell and layer.has_orthocell:
-            layer_atoms = layer.supercell_ortho
-        else:
-            layer_atoms = layer.supercell
+    for layer in layers:
+        layer_atoms = _get_sc(layer)
+        material_type = detect_material_type(layer_atoms.get_chemical_symbols())
         
-        layer_symbols = layer_atoms.get_chemical_symbols()
-        material_type = detect_material_type(layer_symbols)
-        
-        if material_type == 'hBN':
-            hbn_layer_indices.append(layer_idx)
-        else:
-            # TMD/Graphene: find max tag from layer input file
-            input_tags = layer.layer_data.get('atom_tags')
+        if material_type != 'hBN':
+            input_tags = _get_tags(layer)
             if input_tags:
                 max_tmd_type = max(max_tmd_type, max(input_tags))
     
     # Second pass: assign atom types
     hbn_layer_count = 0
     for layer_idx, layer in enumerate(layers):
-        if use_orthocell and layer.has_orthocell:
-            layer_atoms = layer.supercell_ortho
-            unitcell_atoms = layer.unitcell_ortho
-        else:
-            layer_atoms = layer.supercell
-            unitcell_atoms = layer.unitcell
-        
+        layer_atoms = _get_sc(layer)
         layer_symbols = layer_atoms.get_chemical_symbols()
         material_type = detect_material_type(layer_symbols)
         
         if material_type == 'hBN':
-            # hBN: assign types after all TMD types
-            # B gets odd type, N gets even type
-            type_B = max_tmd_type + 2 * hbn_layer_count + 1
-            type_N = max_tmd_type + 2 * hbn_layer_count + 2
-            hbn_layer_count += 1
-            
-            for sym in layer_symbols:
-                if sym == 'B':
-                    atom_types.append(type_B)
-                    charges.append(0.42)
-                elif sym == 'N':
-                    atom_types.append(type_N)
-                    charges.append(-0.42)
+            # Check if hBN has explicit ortho tags
+            if use_orthocell and layer.has_orthocell and layer.layer_data.get('atom_tags_ortho'):
+                # Use ortho tags from input file - supercell preserves them via make_supercell
+                layer_tags = layer_atoms.get_tags()
+                # Build symbol-to-charge map
+                for i_atom, sym in enumerate(layer_symbols):
+                    atom_types.append(int(layer_tags[i_atom]))
+                    if sym == 'B':
+                        charges.append(0.42)
+                    elif sym == 'N':
+                        charges.append(-0.42)
+                    else:
+                        charges.append(0.0)
+                hbn_layer_count += 1
+            else:
+                # Fallback: assign types after all TMD types
+                # B gets odd type, N gets even type
+                type_B = max_tmd_type + 2 * hbn_layer_count + 1
+                type_N = max_tmd_type + 2 * hbn_layer_count + 2
+                hbn_layer_count += 1
+                
+                for sym in layer_symbols:
+                    if sym == 'B':
+                        atom_types.append(type_B)
+                        charges.append(0.42)
+                    elif sym == 'N':
+                        atom_types.append(type_N)
+                        charges.append(-0.42)
         else:
             # TMD/Graphene: use original tags from layer input file
-            # Use z-coordinate classification to assign correct tags
-            input_tags = layer.layer_data.get('atom_tags')
-            input_symbols = layer.layer_data.get('atom_symbols')
-            input_positions = layer.layer_data.get('atom_positions')
+            if use_orthocell and layer.has_orthocell and layer.layer_data.get('atom_tags_ortho'):
+                input_tags = layer.layer_data.get('atom_tags_ortho')
+                input_symbols = layer.layer_data.get('atom_symbols_ortho')
+                input_positions = layer.layer_data.get('atom_positions_ortho')
+            else:
+                input_tags = layer.layer_data.get('atom_tags')
+                input_symbols = layer.layer_data.get('atom_symbols')
+                input_positions = layer.layer_data.get('atom_positions')
             
             if input_tags and input_symbols and input_positions is not None:
-                # Build mapping: symbol -> list of (z_coord, tag) pairs
-                TMD_METALS = {'Mo', 'W', 'Nb', 'Ta', 'Re', 'Tc'}
-                TMD_CHALCOGENS = {'S', 'Se', 'Te'}
+                is_ortho_basis = len(set(input_tags)) >= 12
                 
-                # Get z-coordinates from input file (scaled positions)
-                input_z = [pos[2] for pos in input_positions]
-                
-                # Create symbol-to-tag mapping based on z-coordinate
-                # For metals: only one, so direct mapping
-                # For chalcogens: lower z gets one tag, upper z gets another
-                metal_tag = None
-                chalc_tags = []  # [(z, tag), ...]
-                
-                for sym, z, tag in zip(input_symbols, input_z, input_tags):
-                    if sym in TMD_METALS:
-                        metal_tag = tag
-                    elif sym in TMD_CHALCOGENS:
-                        chalc_tags.append((z, tag))
-                
-                # Sort chalcogens by z to determine lower/upper
-                chalc_tags.sort(key=lambda x: x[0])
-                chalc_lower_tag = chalc_tags[0][1] if len(chalc_tags) > 0 else None
-                chalc_upper_tag = chalc_tags[1][1] if len(chalc_tags) > 1 else chalc_lower_tag
-                
-                # Get supercell positions and compute z-thresholds for classification
-                supercell_positions = layer_atoms.get_positions()
-                supercell_z = supercell_positions[:, 2]
-                
-                # Compute average z for metals and chalcogens in supercell
-                metal_z_avg = np.mean([supercell_z[i] for i, sym in enumerate(layer_symbols) if sym in TMD_METALS])
-                chalc_z_list = [supercell_z[i] for i, sym in enumerate(layer_symbols) if sym in TMD_CHALCOGENS]
-                
-                if chalc_z_list:
-                    chalc_z_mid = (max(chalc_z_list) + min(chalc_z_list)) / 2
+                if is_ortho_basis:
+                    # Orthorhombic basis: use supercell tags directly
+                    # make_supercell preserves tags for ortho cells
+                    layer_tags = layer_atoms.get_tags()
+                    for tag in layer_tags:
+                        atom_types.append(int(tag))
+                        charges.append(0.0)
                 else:
-                    chalc_z_mid = metal_z_avg
-                
-                # Assign tags based on symbol and z-coordinate
-                for i, sym in enumerate(layer_symbols):
-                    z = supercell_z[i]
-                    if sym in TMD_METALS:
-                        atom_types.append(int(metal_tag))
-                    elif sym in TMD_CHALCOGENS:
-                        # Lower chalcogen if z < midpoint, upper otherwise
-                        if z < chalc_z_mid:
-                            atom_types.append(int(chalc_lower_tag))
-                        else:
-                            atom_types.append(int(chalc_upper_tag))
+                    # Hexagonal basis: use z-coordinate classification
+                    TMD_METALS = {'Mo', 'W', 'Nb', 'Ta', 'Re', 'Tc'}
+                    TMD_CHALCOGENS = {'S', 'Se', 'Te'}
+                    
+                    # Get z-coordinates from input file (scaled positions)
+                    input_z = [pos[2] for pos in input_positions]
+                    
+                    # Create symbol-to-tag mapping based on z-coordinate
+                    metal_tag = None
+                    chalc_tags = []  # [(z, tag), ...]
+                    
+                    for sym, z, tag in zip(input_symbols, input_z, input_tags):
+                        if sym in TMD_METALS:
+                            metal_tag = tag
+                        elif sym in TMD_CHALCOGENS:
+                            chalc_tags.append((z, tag))
+                    
+                    # Sort chalcogens by z to determine lower/upper
+                    chalc_tags.sort(key=lambda x: x[0])
+                    chalc_lower_tag = chalc_tags[0][1] if len(chalc_tags) > 0 else None
+                    chalc_upper_tag = chalc_tags[1][1] if len(chalc_tags) > 1 else chalc_lower_tag
+                    
+                    # Get supercell positions and compute z-thresholds
+                    supercell_positions = layer_atoms.get_positions()
+                    supercell_z = supercell_positions[:, 2]
+                    
+                    metal_z_avg = np.mean([supercell_z[i] for i, sym in enumerate(layer_symbols) if sym in TMD_METALS])
+                    chalc_z_list = [supercell_z[i] for i, sym in enumerate(layer_symbols) if sym in TMD_CHALCOGENS]
+                    
+                    if chalc_z_list:
+                        chalc_z_mid = (max(chalc_z_list) + min(chalc_z_list)) / 2
                     else:
-                        # Unknown atom type, use first tag
-                        atom_types.append(int(input_tags[0]))
-                    charges.append(0.0)
+                        chalc_z_mid = metal_z_avg
+                    
+                    # Assign tags based on symbol and z-coordinate
+                    for i, sym in enumerate(layer_symbols):
+                        z = supercell_z[i]
+                        if sym in TMD_METALS:
+                            atom_types.append(int(metal_tag))
+                        elif sym in TMD_CHALCOGENS:
+                            if z < chalc_z_mid:
+                                atom_types.append(int(chalc_lower_tag))
+                            else:
+                                atom_types.append(int(chalc_upper_tag))
+                        else:
+                            atom_types.append(int(input_tags[0]))
+                        charges.append(0.0)
             else:
                 # Fallback: use supercell tags
                 layer_tags = layer_atoms.get_tags()

@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 import numpy as np
 import os
 from scipy.interpolate import griddata
@@ -9,6 +7,9 @@ from matplotlib import cm
 from matplotlib.colors import LinearSegmentedColormap
 from scipy import spatial
 from matplotlib.collections import LineCollection
+from matplotlib.patches import Polygon
+from matplotlib.path import Path
+import matplotlib.patches as mpatches
 
 
 def readinp_map(file_name):
@@ -106,6 +107,22 @@ def placeaxes(A1, A2):
     Sum = A1 + A2
     plt.plot([ A2[0], Sum[0]  ], [A2[1], Sum[1]], color = "grey", lw = 2.1)
     plt.plot([ A1[0], Sum[0]], [A1[1], Sum[1]], color = "grey", lw = 2.1)
+
+
+def fold_into_cell(pos, A1, A2):
+    """
+    Fold Cartesian positions into the unit cell defined by A1 and A2.
+    Returns positions with fractional parts in [0, 1) along A1 and A2.
+    """
+    cell2d = np.array([[A1[0], A2[0]],
+                       [A1[1], A2[1]]])
+    frac = np.linalg.solve(cell2d, pos[:, :2].T).T
+    frac = frac % 1.0
+    cart = frac[:, 0:1] * A1[:2] + frac[:, 1:2] * A2[:2]
+    result = pos.copy()
+    result[:, 0] = cart[:, 0]
+    result[:, 1] = cart[:, 1]
+    return result
 
 
 def repeat_atoms(pos,rep,A1, A2, shift_origin):
@@ -244,7 +261,20 @@ def summarize_strain(strain, layer_name):
     plt.close()
 
 
-def plot_strain_map(xs, ys, strain, A1, A2, xl, yl, place_dots, fnt_sz, tick_labsz, fig_name, show_unit_cell=False, show=False):
+def _make_repeat_clip(A1, A2, repeat, ax):
+    """
+    Return a Polygon patch that covers exactly repeat[0]*A1 + repeat[1]*A2 cells.
+    Used as a clip path so data outside the parallelogram is hidden.
+    """
+    O  = np.array([0.0, 0.0])
+    P1 = repeat[0] * A1[:2]
+    P2 = repeat[1] * A2[:2]
+    P3 = P1 + P2
+    verts = np.array([O, P1, P3, P2, O])
+    return Polygon(verts, closed=True, transform=ax.transData)
+
+
+def plot_strain_map(xs, ys, strain, A1, A2, xl, yl, place_dots, fnt_sz, tick_labsz, fig_name, repeat=None, show_unit_cell=False, show=False):
     """
     Publication-quality strain map plot with coolwarm colormap and optional unit cell.
     """
@@ -295,18 +325,31 @@ def process_strain_directory(input_dir, show_unit_cell=False):
         A3 = A3*alat
         
         pos = read_atoms('pos', spc)
-        
+        pos = np.array(pos)
+
+        pos = fold_into_cell(pos, A1, A2)
         pos = repeat_atoms_padded(pos, repeat, A1, A2, shift_origin, padding=2)
         
-        # Shift data so minimum position is at origin
-        min_x = np.min(pos[:, 0])
-        min_y = np.min(pos[:, 1])
-        pos[:, 0] -= min_x
-        pos[:, 1] -= min_y
+        # Shift data so the visible region starts near origin
+        # The visible region corner (0,0) in pre-shift coords is at -origin
+        origin = shift_origin[0]*A1 + shift_origin[1]*A2
+        shift_x = -origin[0]
+        shift_y = -origin[1]
+        pos[:, 0] -= shift_x
+        pos[:, 1] -= shift_y
         
-        # Adjust plot limits accordingly
-        xl = [xl[0] - min_x, xl[1] - min_x]
-        yl = [yl[0] - min_y, yl[1] - min_y]
+        # Compute visible region limits
+        corners_x = []
+        corners_y = []
+        for ii in [0, repeat[0]]:
+            for jj in [0, repeat[1]]:
+                c = ii*A1 + jj*A2
+                corners_x.append(c[0])
+                corners_y.append(c[1])
+        x_range = max(corners_x) - min(corners_x)
+        y_range = max(corners_y) - min(corners_y)
+        xl = [min(corners_x) - 0.05*x_range, max(corners_x) + 0.05*x_range]
+        yl = [min(corners_y) - 0.05*y_range, max(corners_y) + 0.05*y_range]
         
         if rot_plot:
             axis = np.array([0,0,1])
@@ -326,7 +369,7 @@ def process_strain_directory(input_dir, show_unit_cell=False):
         summarize_strain(strain, layer_name)
         print(f"Max strain in {layer_name}: {np.max(strain):.2f}%")
         plot_strain_map(xs, ys, strain, A1, A2, xl, yl, place_dots, fnt_sz, tick_labsz, 
-                       f"strain_{layer_name}", show_unit_cell=show_unit_cell, show=False)
+                       f"strain_{layer_name}", repeat=repeat, show_unit_cell=show_unit_cell, show=False)
         
         print(f"  - Generated strain plots in {input_dir}")
         
@@ -340,7 +383,7 @@ def main():
     """Main function to process all strain directories."""
     print("Processing strain analysis...")
     
-    show_unit_cell = False
+    show_unit_cell = True
     
     base_path = '.'
     strain_path = os.path.join(base_path, 'StrainMap')

@@ -38,6 +38,18 @@ def generate_lammps_input(structure_file, layers, config, use_orthocell=False):
     print(f"Written lammps.in for materials: {', '.join(material_info['layer_types'])}")
 
 
+def _get_supercell(layer, use_orthocell):
+    """Return the appropriate supercell (ortho or hex) for a layer."""
+    return layer.supercell_ortho if (use_orthocell and layer.has_orthocell) else layer.supercell
+
+
+def _get_input_tags(layer, use_orthocell):
+    """Return input tags from layer data, preferring ortho tags when appropriate."""
+    if use_orthocell and layer.has_orthocell and layer.layer_data.get('atom_tags_ortho'):
+        return layer.layer_data.get('atom_tags_ortho')
+    return layer.layer_data.get('atom_tags')
+
+
 def _analyze_system(structure_file, layers, use_orthocell):
     """Analyze the system and gather all necessary information."""
     layer_info = []
@@ -46,46 +58,34 @@ def _analyze_system(structure_file, layers, use_orthocell):
     # First pass: find max TMD type from layer input files
     max_tmd_type = 0
     for layer in layers:
-        if use_orthocell and layer.has_orthocell:
-            supercell = layer.supercell_ortho
-        else:
-            supercell = layer.supercell
-        
-        symbols = supercell.get_chemical_symbols()
-        material_type = detect_material_type(symbols)
+        supercell = _get_supercell(layer, use_orthocell)
+        material_type = detect_material_type(supercell.get_chemical_symbols())
         
         if material_type != 'hBN':
-            # Use tags from layer input file, not from supercell
-            input_tags = layer.layer_data.get('atom_tags')
+            input_tags = _get_input_tags(layer, use_orthocell)
             if input_tags:
                 max_tmd_type = max(max_tmd_type, max(input_tags))
     
     # Second pass: assign atom types
     hbn_layer_count = 0
     for i, layer in enumerate(layers):
-        if use_orthocell and layer.has_orthocell:
-            supercell = layer.supercell_ortho
-        else:
-            supercell = layer.supercell
-        
+        supercell = _get_supercell(layer, use_orthocell)
         symbols = supercell.get_chemical_symbols()
         tags = supercell.get_tags()
         material_type = detect_material_type(symbols)
-        intralayer_pot = layer.get_intralayer_potential()
         
-        # For hBN in mixed systems, assign types after all TMD types
         if material_type == 'hBN':
-            type_B = max_tmd_type + 2 * hbn_layer_count + 1
-            type_N = max_tmd_type + 2 * hbn_layer_count + 2
-            hbn_layer_count += 1
-            unique_tags = [type_B, type_N]
-        else:
-            # For TMD/Graphene, use tags from layer input file
-            input_tags = layer.layer_data.get('atom_tags')
+            input_tags = _get_input_tags(layer, use_orthocell)
             if input_tags:
-                unique_tags = list(set(input_tags))
+                unique_tags = sorted(set(input_tags))
             else:
-                unique_tags = list(set(tags))
+                type_B = max_tmd_type + 2 * hbn_layer_count + 1
+                type_N = max_tmd_type + 2 * hbn_layer_count + 2
+                unique_tags = [type_B, type_N]
+            hbn_layer_count += 1
+        else:
+            input_tags = _get_input_tags(layer, use_orthocell)
+            unique_tags = list(set(input_tags)) if input_tags else list(set(tags))
         
         layer_info.append({
             'index': i,
@@ -95,20 +95,21 @@ def _analyze_system(structure_file, layers, use_orthocell):
             'tags': tags,
             'unique_tags': unique_tags,
             'num_atoms': len(symbols),
-            'intralayer_potential': intralayer_pot
+            'intralayer_potential': layer.get_intralayer_potential()
         })
         all_symbols.extend(symbols)
     
     # Read structure file to get atom types and masses
     atom_types, masses, type_to_symbol = _read_structure_info(structure_file)
+    layer_types = [info['material_type'] for info in layer_info]
     
     return {
         'n_layers': len(layers),
         'layer_info': layer_info,
-        'layer_types': [info['material_type'] for info in layer_info],
-        'has_hbn': any(info['material_type'] == 'hBN' for info in layer_info),
-        'has_graphene': any(info['material_type'] == 'Graphene' for info in layer_info),
-        'has_tmd': any(info['material_type'] == 'TMD' for info in layer_info),
+        'layer_types': layer_types,
+        'has_hbn': 'hBN' in layer_types,
+        'has_graphene': 'Graphene' in layer_types,
+        'has_tmd': 'TMD' in layer_types,
         'all_symbols': all_symbols,
         'unique_symbols': list(set(all_symbols)),
         'atom_types': atom_types,
@@ -183,10 +184,11 @@ def _generate_hbn_input(structure_file, material_info, config):
         
         f.write("# Intralayer Interaction\n")
         pot = material_info['layer_info'][0]['intralayer_potential']
-        f.write(f"pair_coeff      * * tersoff {pot} {' '.join(material_info['unique_symbols']*material_info['n_layers'])}\n\n")
+        symbols_for_types = [material_info['type_to_symbol'][atype] for atype in material_info['atom_types']]
+        f.write(f"pair_coeff      * * tersoff {pot} {' '.join(symbols_for_types)}\n\n")
         
         f.write("# Interlayer Interaction\n")
-        f.write(f"pair_coeff      * * ilp/graphene/hbn BNCH.ILP {' '.join(material_info['unique_symbols']*material_info['n_layers'])}\n\n")
+        f.write(f"pair_coeff      * * ilp/graphene/hbn BNCH.ILP {' '.join(symbols_for_types)}\n\n")
         
         # Coulomb interactions
         f.write("# Coulomb interactions between layers\n")
@@ -217,8 +219,12 @@ def _generate_hbn_input(structure_file, material_info, config):
         f.write("dump            1 all custom 100 dump.minimization id type x y z\n")
         f.write("thermo          1000\n")
         f.write("thermo_style    custom step pe press\n")
-        f.write("min_style       fire\n")
-        f.write("minimize        1.0e-10 1.0e-12 100000 1000000\n")
+        if material_info["has_graphene"]:
+            f.write("min_style       cg\n")
+            f.write("minimize        1.0e-10 1.0e-12 100000 1000000\n")
+        else:
+            f.write("min_style       fire\n")
+            f.write("minimize        1.0e-10 1.0e-12 100000 1000000\n")
         f.write("undump          1\n")
         f.write("write_dump      all custom dump.Final id type x y z modify sort id\n")
         f.write('print "Done!"\n')
@@ -251,21 +257,21 @@ def _generate_graphene_input(structure_file, material_info, config):
         
         f.write("#5 Interlayer interactions\n")
         inter_pot = config.get('interlayer_potential', 'CC.KC')
-        # KC potential requires element mapping for all atom types
         symbols_for_types = [material_info['type_to_symbol'][atype] for atype in material_info['atom_types']]
-        # For graphene, need all cross-layer interactions (only between adjacent layers)
         for i in range(material_info['n_layers'] - 1):
-            layer_i_types = material_info['layer_info'][i]['unique_tags']
-            layer_j_types = material_info['layer_info'][i+1]['unique_tags']
-            for type_i in layer_i_types:
-                for type_j in layer_j_types:
-                    f.write(f"pair_coeff      {type_i} {type_j} kolmogorov/crespi/z {inter_pot} {' '.join(symbols_for_types)}\n")
+            type_i = sorted(material_info['layer_info'][i]['unique_tags'])[0]
+            type_j = sorted(material_info['layer_info'][i+1]['unique_tags'])[0]
+            f.write(f"pair_coeff      {type_i} {type_j} kolmogorov/crespi/z {inter_pot} {' '.join(symbols_for_types)}\n")
         f.write("\n")
         
         f.write("#6 Optimize at 0 K\n")
         f.write("dump            1 all custom 400 dump.minimization id type x y z\n")
-        f.write("min_style       fire\n")
-        f.write("minimize        0.0 1.0e-8 1000000 1000000\n")
+        if material_info["has_graphene"]:
+            f.write("min_style       cg\n")
+            f.write("minimize        1.0e-10 1.0e-12 100000 1000000\n")
+        else:
+            f.write("min_style       fire\n")
+            f.write("minimize        0.0 1.0e-8 1000000 1000000\n")
         f.write("undump          1\n")
         f.write("write_dump      all custom dump.Final id type x y z modify sort id\n")
         f.write('print "Done!"\n')
@@ -347,7 +353,7 @@ def _generate_tmd_input(structure_file, material_info, config, use_orthocell):
         
         if is_ortho_basis:
             # Orthorhombic: Generate 64 interactions per layer pair
-            _generate_ortho_interlayer_interactions(f, material_info, inter_pot, interaction_num)
+            _generate_ortho_interlayer_interactions(f, material_info, inter_pot, interaction_num, structure_file)
         else:
             # Hexagonal: Use classification-based approach
             for i in range(n_layers - 1):
@@ -385,28 +391,41 @@ def _generate_mixed_input(structure_file, material_info, config):
         raise NotImplementedError("Mixed TMD+Graphene systems not yet implemented")
 
 
-def _partition_chalcogens_ortho(layer_info, type_to_symbol):
+def _partition_chalcogens_ortho(layer_info, type_to_symbol, structure_file=None):
     """
-    Partition chalcogens in orthorhombic structure into two groups based on tag order.
-    Group A: first 4 chalcogen tags (sorted)
-    Group B: next 4 chalcogen tags (sorted)
+    Partition chalcogens in orthorhombic structure into two groups based on z-coordinates.
+    Group A: chalcogens at lower z-coordinate (X_l)
+    Group B: chalcogens at upper z-coordinate (X_u)
     """
     TMD_CHALCOGENS = {'S', 'Se', 'Te'}
     
-    # Find chalcogen tags using type_to_symbol mapping
-    chalc_tags = []
-    for tag in layer_info['unique_tags']:
-        if tag in type_to_symbol and type_to_symbol[tag] in TMD_CHALCOGENS:
-            chalc_tags.append(tag)
-    
-    # Sort tags
-    chalc_tags_sorted = sorted(chalc_tags)
-    
-    # Split into two groups (alternating pattern)
-    group_A = chalc_tags_sorted[0::2]  # Even indices: 0, 2, 4, 6
-    group_B = chalc_tags_sorted[1::2]  # Odd indices: 1, 3, 5, 7
-    
-    return group_A, group_B
+    # If structure_file provided, use z-coordinate based classification
+    if structure_file:
+        # Use the same z-based classification as hexagonal TMD
+        classifications = _classify_tmd_atoms(layer_info, structure_file)
+        
+        group_A = []  # X_l (lower chalcogens)
+        group_B = []  # X_u (upper chalcogens)
+        
+        for tag, class_i, sym in classifications:
+            if class_i == 'X_l':
+                group_A.append(tag)
+            elif class_i == 'X_u':
+                group_B.append(tag)
+        
+        return group_A, group_B
+    else:
+        # Fallback to tag-based approach if no structure file
+        chalc_tags = []
+        for tag in layer_info['unique_tags']:
+            if tag in type_to_symbol and type_to_symbol[tag] in TMD_CHALCOGENS:
+                chalc_tags.append(tag)
+        
+        chalc_tags_sorted = sorted(chalc_tags)
+        group_A = chalc_tags_sorted[0::2]
+        group_B = chalc_tags_sorted[1::2]
+        
+        return group_A, group_B
 
 
 def _partition_metals_ortho(layer_info, type_to_symbol):
@@ -422,66 +441,56 @@ def _partition_metals_ortho(layer_info, type_to_symbol):
     return sorted(metal_tags)
 
 
-def _generate_ortho_interlayer_interactions(f, material_info, inter_pot, start_interaction_num):
+def _write_kc_pairs(f, tags_i, tags_j, type_to_symbol, n_types, inter_pot, interaction_num, sym_override=None):
+    """
+    Write KC pair_coeff lines for all (tag_i, tag_j) pairs.
+    
+    Args:
+        sym_override: dict mapping tag -> symbol override (e.g. for hBN atoms mapped to 'B')
+    Returns:
+        Updated interaction_num.
+    """
+    if sym_override is None:
+        sym_override = {}
+    for tag_i in tags_i:
+        for tag_j in tags_j:
+            symbols_line = ['NULL'] * n_types
+            symbols_line[tag_i - 1] = sym_override.get(tag_i, type_to_symbol[tag_i])
+            symbols_line[tag_j - 1] = sym_override.get(tag_j, type_to_symbol[tag_j])
+            f.write(f"pair_coeff {tag_i} {tag_j} kolmogorov/crespi/z {interaction_num} {inter_pot} {' '.join(symbols_line)}\n")
+            interaction_num += 1
+    return interaction_num
+
+
+def _generate_ortho_interlayer_interactions(f, material_info, inter_pot, start_interaction_num, structure_file):
     """
     Generate 64 interlayer interactions per layer pair for orthorhombic TMD structures.
     
-    Following the original TwisterASE approach:
-    - Set 1: Lower chalc_A × Upper chalc_B (4×4 = 16)
+    Following the original TwisterASE approach with z-based chalcogen partitioning:
+    - Set 1: Lower chalc_B (X_u) × Upper chalc_A (X_l) (4×4 = 16)
     - Set 2: Lower metals × Upper metals (4×4 = 16)
-    - Set 3: Lower chalc_A × Upper metals (4×4 = 16)
-    - Set 4: Lower metals × Upper chalc_B (4×4 = 16)
+    - Set 3: Lower chalc_B (X_u) × Upper metals (4×4 = 16)
+    - Set 4: Lower metals × Upper chalc_A (X_l) (4×4 = 16)
     Total: 64 interactions per layer pair
     """
     n_layers = material_info['n_layers']
+    type_to_symbol = material_info['type_to_symbol']
+    n_types = len(material_info['atom_types'])
     interaction_num = start_interaction_num
     
     for i in range(n_layers - 1):
         lower_layer = material_info['layer_info'][i]
         upper_layer = material_info['layer_info'][i + 1]
         
-        # Partition atoms
-        type_to_symbol = material_info['type_to_symbol']
-        lower_chalc_A, lower_chalc_B = _partition_chalcogens_ortho(lower_layer, type_to_symbol)
-        upper_chalc_A, upper_chalc_B = _partition_chalcogens_ortho(upper_layer, type_to_symbol)
+        lower_chalc_A, lower_chalc_B = _partition_chalcogens_ortho(lower_layer, type_to_symbol, structure_file)
+        upper_chalc_A, upper_chalc_B = _partition_chalcogens_ortho(upper_layer, type_to_symbol, structure_file)
         lower_metals = _partition_metals_ortho(lower_layer, type_to_symbol)
         upper_metals = _partition_metals_ortho(upper_layer, type_to_symbol)
         
-        # Set 1: Lower chalc_A × Upper chalc_B
-        for tag_i in lower_chalc_A:
-            for tag_j in upper_chalc_B:
-                symbols_line = ['NULL'] * len(material_info['atom_types'])
-                symbols_line[tag_i - 1] = material_info['type_to_symbol'][tag_i]
-                symbols_line[tag_j - 1] = material_info['type_to_symbol'][tag_j]
-                f.write(f"pair_coeff {tag_i} {tag_j} kolmogorov/crespi/z {interaction_num} {inter_pot} {' '.join(symbols_line)}\n")
-                interaction_num += 1
-        
-        # Set 2: Lower metals × Upper metals
-        for tag_i in lower_metals:
-            for tag_j in upper_metals:
-                symbols_line = ['NULL'] * len(material_info['atom_types'])
-                symbols_line[tag_i - 1] = material_info['type_to_symbol'][tag_i]
-                symbols_line[tag_j - 1] = material_info['type_to_symbol'][tag_j]
-                f.write(f"pair_coeff {tag_i} {tag_j} kolmogorov/crespi/z {interaction_num} {inter_pot} {' '.join(symbols_line)}\n")
-                interaction_num += 1
-        
-        # Set 3: Lower chalc_A × Upper metals
-        for tag_i in lower_chalc_A:
-            for tag_j in upper_metals:
-                symbols_line = ['NULL'] * len(material_info['atom_types'])
-                symbols_line[tag_i - 1] = material_info['type_to_symbol'][tag_i]
-                symbols_line[tag_j - 1] = material_info['type_to_symbol'][tag_j]
-                f.write(f"pair_coeff {tag_i} {tag_j} kolmogorov/crespi/z {interaction_num} {inter_pot} {' '.join(symbols_line)}\n")
-                interaction_num += 1
-        
-        # Set 4: Lower metals × Upper chalc_B
-        for tag_i in lower_metals:
-            for tag_j in upper_chalc_B:
-                symbols_line = ['NULL'] * len(material_info['atom_types'])
-                symbols_line[tag_i - 1] = material_info['type_to_symbol'][tag_i]
-                symbols_line[tag_j - 1] = material_info['type_to_symbol'][tag_j]
-                f.write(f"pair_coeff {tag_i} {tag_j} kolmogorov/crespi/z {interaction_num} {inter_pot} {' '.join(symbols_line)}\n")
-                interaction_num += 1
+        interaction_num = _write_kc_pairs(f, lower_chalc_B, upper_chalc_A, type_to_symbol, n_types, inter_pot, interaction_num)
+        interaction_num = _write_kc_pairs(f, lower_metals, upper_metals, type_to_symbol, n_types, inter_pot, interaction_num)
+        interaction_num = _write_kc_pairs(f, lower_chalc_B, upper_metals, type_to_symbol, n_types, inter_pot, interaction_num)
+        interaction_num = _write_kc_pairs(f, lower_metals, upper_chalc_A, type_to_symbol, n_types, inter_pot, interaction_num)
 
 
 def _classify_tmd_atoms(layer_info, structure_file):

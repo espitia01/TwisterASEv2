@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="docs/images/logo.png" alt="TwisterASE Logo">
+  <img src="docs/images/logo.jpg" alt="TwisterASE Logo" width="400">
 </p>
 
 # TwisterASE
 
-**A Python toolkit for generating and analyzing twisted layered material structures**
+**A Python toolkit for generating and analyzing twisted layered material heterostructures**
 
 TwisterASE builds supercells of twisted 2D materials (graphene, hBN, TMDs) and generates LAMMPS input files for molecular dynamics simulations with automatic interlayer potential configuration.
 
@@ -34,22 +34,29 @@ TwisterASE builds supercells of twisted 2D materials (graphene, hBN, TMDs) and g
 
 ### Post-Processing & Analysis
 - **Layer extraction** from relaxed LAMMPS structures (`cutpos.py`)
-- **Interlayer spacing analysis** 
-- **Strain analysis** 
+- **Interlayer spacing analysis** with heatmaps and statistics
+- **Strain analysis** with distribution plots
 - **DFT converters**: CIF → SIESTA (.fdf), Quantum ESPRESSO (.in)
 
 ---
 
 ## Installation
 
-### Requirements
+### Conda (Recommended)
+
 ```bash
-# Core dependencies
+conda env create -f environment.yml
+conda activate twisterase
+```
+
+### pip
+
+```bash
 pip install numpy scipy ase matplotlib
 ```
 
 ### Python Version
-- Python 3.7+
+- Python 3.9+
 
 ### External Software (Optional)
 - **LAMMPS** (for MD simulations)
@@ -57,126 +64,143 @@ pip install numpy scipy ase matplotlib
 
 ---
 
-## Quick Start
+## Worked Example: Twisted Bilayer Graphene
 
-### 1. Generate Twisted Bilayer Structure
+This reproduces `Examples/Graphene_Bilayer_Hex/` — a commensurate twisted bilayer graphene at `i_value = 9` (~13.17°).
 
-Create input files in your working directory:
+### Step 1 — Input files
 
-**`twisterase.inp`** (main configuration):
-```python
-# Number of layers
+**`twisterase.inp`**
+```
 n_layers = 2
 hex_lattice = True
+i_value = 9
 
-# Twist angle via commensurate index
-i_value = 1  # ~21.8° twist angle
-
-# Superlattice parameters
-lattice_parameters = [2.46, 2.46, 35.0]
-superlattice_vectors_block
-1 0 0
-0 1 0
-0 0 1
-
-# LAMMPS output
 write_lammps = True
-interlayer_potential = "C.KC"
+interlayer_potential = "CC.KC"
 ```
 
-**`layer1.inp`** (bottom layer):
-```python
+**`layer1.inp`** — bottom layer (tags 1, 2)
+```
 twist_angle = 0.0
 lattice_parameters = [2.46, 2.46, 35.0]
 
 lattice_vectors_block
-1.0  0.0  0.0
--0.5  0.866025  0.0
-0.0  0.0  1.0
+1.0 0.0 0.0
+0.5 0.8660254038 0.0
+0.0 0.0 1.0
 
 start_atom_positions_block
-C  0.0    0.0      0.0  1
-C  0.333  0.666    0.0  2
+C   0.000000000   0.000000000   0.5  1
+C   0.666666666   0.666666666   0.5  2
 end_atom_positions_block
 
-intralayer_potential = "C.rebo"
+translate_z = 0.0
+intralayer_potential = "CH.rebo"
 ```
 
-**`layer2.inp`** (top layer):
-```python
-twist_angle = 21.787  # Will be overridden by i_value
+**`layer2.inp`** — top layer (tags 3, 4; twist set automatically by `i_value`)
+```
+twist_angle = 0.0
 lattice_parameters = [2.46, 2.46, 35.0]
-translate_z = 3.35
 
 lattice_vectors_block
-1.0  0.0  0.0
--0.5  0.866025  0.0
-0.0  0.0  1.0
+1.0 0.0 0.0
+0.5 0.8660254038 0.0
+0.0 0.0 1.0
 
 start_atom_positions_block
-C  0.0    0.0      0.0  3
-C  0.333  0.666    0.0  4
+C   0.000000000   0.000000000   0.5  3
+C   0.666666666   0.666666666   0.5  4
 end_atom_positions_block
 
-intralayer_potential = "C.rebo"
+translate_z = 3.3
+intralayer_potential = "CH.rebo"
 ```
 
-### 2. Run Structure Generation
+> **Tag rule**: each atom type must have a unique integer tag across all layers.
+
+### Step 2 — Generate structure
 
 ```bash
-cd Test/MySystem
+cd Examples/Graphene_Bilayer_Hex
 python ../../Src/twisterase.py
 ```
 
-**Output:**
-- `superlattice.cif` - Full twisted structure
-- `structure.lammps` - LAMMPS data file
-- `lammps.in` - LAMMPS input script
+Produces: `superlattice.cif`, `structure.lammps`, `lammps.in`
 
-### 3. Run LAMMPS Simulation
+### Step 3 — Generated `lammps.in`
+
+```lammps
+units           metal
+dimension       3
+atom_style      atomic
+neighbor        0.3 bin
+
+boundary        p p p
+read_data       structure.lammps
+mass 1 12.011
+mass 2 12.011
+mass 3 12.011
+mass 4 12.011
+
+pair_style      hybrid/overlay rebo kolmogorov/crespi/z 14.0
+
+pair_coeff      * * rebo CH.rebo C C C C
+pair_coeff      1 3 kolmogorov/crespi/z CC.KC C C C C
+
+dump            1 all custom 400 dump.minimization id type x y z
+min_style       fire
+minimize        0.0 1.0e-8 1000000 1000000
+undump          1
+write_dump      all custom dump.Final id type x y z modify sort id
+print "Done!"
+```
+
+### Step 4 — Run LAMMPS
 
 ```bash
 lmp_serial -in lammps.in
+# or in parallel:
+mpirun -np 8 lmp_mpi -in lammps.in
 ```
 
-**Note:** The structure file uses `atom_style full` with charges for ILP potential compatibility. Ensure your LAMMPS build includes:
-- `pair_style sw/mod` (TMDs)
-- `pair_style tersoff` (hBN)
-- `pair_style kolmogorov/crespi/z` (interlayer)
-- `pair_style rebo` (graphene)
+### Step 5 — Extract layers
+
+**`cutpos.inp`**:
+```
+n_layers = 2
+lammps_dump = "dump.Final"
+orthocell_12atom_sw = False
+```
+
+```bash
+python ../../Src/cutpos.py
+```
+
+Produces: `relaxed_structure.cif`, `layer_1.cif`, `layer_2.cif`, `layer_1_coords.dat`, `layer_2_coords.dat`
+
+### Step 6 — Run analysis
+
+```bash
+python ../../Src/run_analysis.py
+```
+
+Produces interlayer spacing maps and per-layer strain maps in `InterlayerSpacingMap/` and `StrainMap/`.
 
 ---
 
 ## Supported Materials
 
-### Graphene
-- **Basis**: 2 atoms (hexagonal)
-- **Intralayer**: REBO
-- **Interlayer**: KC (Kolmogorov-Crespi)
-- **Examples**: `Test/Graphene_Bilayer_Hex/`
+| Material | Basis | Intralayer | Interlayer | Examples |
+|----------|-------|-----------|-----------|---------|
+| **Graphene** | 2 C atoms (hex) | REBO (`CH.rebo`) | KC (`CC.KC`) — one `pair_coeff` per adjacent pair | `Graphene_Bilayer_Hex/` |
+| **hBN** | 2 atoms B, N (hex) | Tersoff (`BNC.tersoff`) per layer | ILP (`BNCH.ILP`) | `Bilayer_hBN/`, `hBN_Trilayer_Hex/` |
+| **TMD hex** | 3 atoms: TM + 2 X (hex) | SW/mod (`tmd.sw`) | KC — z-classified (TM, X_l, X_u) | `tMoSe2/`, `WSe2_Bilayer_Hex/` |
+| **TMD ortho** | 12 atoms: 4 TM + 8 X (ortho) | SW/mod | KC — 64 interactions per layer pair | `tMoSe2_Ortho/`, `WS2_WSe2_Bilayer_Ortho/` |
+| **hBN + TMD** | mixed | SW/mod + Tersoff per layer | KC chalcogen-specific (`SeBN.KC`, `SBN.KC`) | `tWSe2_hBN/`, `tMoSe2_Ortho_hBN/` |
 
-### hBN (Hexagonal Boron Nitride)
-- **Basis**: 2 atoms (B, N)
-- **Intralayer**: Tersoff (separate instance per layer)
-- **Interlayer**: KC
-- **Examples**: `Test/hBN_Trilayer_Hex/`
-
-### TMD (Transition Metal Dichalcogenides)
-- **Hexagonal basis**: 3 atoms (1 metal + 2 chalcogens)
-  - Intralayer: SW/mod
-  - Interlayer: KC with classification (metal-metal, chalcogen-chalcogen)
-  - Examples: `Test/WSe2_Bilayer_Hex/`
-  
-- **Orthorhombic basis**: 12 atoms (4 metals + 8 chalcogens)
-  - Intralayer: SW/mod with numbered atoms (W1, W2, Se1, Se2, ...)
-  - Interlayer: 64 interactions per layer pair
-  - Examples: `Test/WS2_WSe2_Bilayer_Ortho/`
-
-### Mixed Heterostructures
-- **hBN + TMD**: Separate potentials, KC for all interlayer
-  - Examples: `Test/tWSe2_hBN/`
-- **Graphene + TMD**: Not yet implemented
-- **hBN + Graphene**: Not yet implemented
+> Graphene+TMD and hBN+Graphene mixed systems are not yet implemented.
 
 ---
 
@@ -188,208 +212,136 @@ TwisterASEv2/
 │   ├── twisterase.py              # Main structure generator
 │   ├── layer.py                   # Layer class
 │   ├── file_io.py                 # Input file parsing
-│   ├── transformations.py         # Twist angle calculations
+│   ├── transformations.py         # Twist angle & geometry utilities
 │   ├── lammps_writers/
 │   │   ├── structure_writer.py    # LAMMPS data file writer
-│   │   ├── input_generator.py     # Main LAMMPS input generator
+│   │   ├── input_generator.py     # LAMMPS input generator (graphene, hBN, TMD)
 │   │   ├── input_generator_hbn_tmd.py  # Mixed hBN+TMD generator
 │   │   └── material_detector.py   # Material type detection
-│   ├── cutpos.py                  # Layer extraction tool
-│   ├── analysis.py                # Structure analysis
+│   ├── cutpos.py                  # Layer extraction from dump.Final
+│   ├── run_analysis.py            # Automated analysis workflow
+│   ├── setup_analysis_dirs.py     # Analysis directory setup
+│   ├── generate_plot_inputs.py    # Plot input file generator
+│   ├── plot_interlayer_spacing.py # Interlayer spacing heatmaps
+│   ├── plot_strains.py            # Strain maps and histograms
 │   ├── cif2siesta.py              # CIF → SIESTA converter
-│   ├── cif2qe.py                  # CIF → Quantum ESPRESSO converter
-│   └── run_analysis.py            # Automated analysis workflow
+│   └── cif2qe.py                  # CIF → Quantum ESPRESSO converter
 │
-├── Test/
-│   ├── Graphene_Bilayer_Hex/      # Twisted bilayer graphene
+├── Examples/
+│   ├── Graphene_Bilayer_Hex/      # Twisted bilayer graphene (i_value=9, ~13.2°)
+│   ├── Bilayer_hBN/               # hBN bilayer
 │   ├── hBN_Trilayer_Hex/          # hBN trilayer
 │   ├── WSe2_Bilayer_Hex/          # Hexagonal WSe2 bilayer
-│   ├── WS2_WSe2_Bilayer_Ortho/    # Orthorhombic WS2/WSe2
-│   └── tWSe2_hBN/                 # Mixed TMD-hBN heterostructure
+│   ├── WS2_WSe2_Bilayer_Ortho/    # Orthorhombic WS2/WSe2 heterostructure
+│   ├── tMoSe2/                    # Twisted MoSe2 (hex, i_value=5)
+│   ├── tMoSe2_Ortho/              # Twisted MoSe2 (orthorhombic basis)
+│   ├── tMoSe2_Ortho_hBN/          # MoSe2 ortho + hBN encapsulation
+│   ├── tWSe2_hBN/                 # Mixed TMD-hBN heterostructure
+│   └── MoSe2-10x10_SC/            # Large MoSe2 supercell
 │
 ├── docs/
-│   ├── images/                    # Logo and other images
-│   ├── input_files.md             # Input file format reference
+│   ├── input_files.md             # Full input file format reference
 │   ├── workflow.md                # Complete workflow guide
-│   ├── cutpos.md                  # Layer extraction documentation
-│   └── converters.md              # DFT converter documentation
+│   └── images/
 │
-└── README.md                      # This file
-```
-
----
-
-## Workflow
-
-### Complete Workflow: Structure → Simulation → Analysis
-
-```bash
-# 1. Generate structure
-cd Test/MySystem
-python ../../Src/twisterase.py
-
-# 2. Run LAMMPS relaxation
-lmp_serial -in lammps.in
-
-# 3. Extract individual layers
-python ../../Src/cutpos.py
-
-# 4. Run analysis
-python ../../Src/run_analysis.py
-
-# 5. Convert to DFT format (optional)
-python ../../Src/cif2siesta.py layer_1.cif layer_1.fdf
-python ../../Src/cif2qe.py layer_1.cif layer_1.in
+├── environment.yml
+└── README.md
 ```
 
 ---
 
 ## Input File Reference
 
-### `twisterase.inp` Parameters
+### `twisterase.inp`
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `n_layers` | int | Number of layers |
-| `hex_lattice` | bool | Use hexagonal lattice (True) or custom |
-| `i_value` | int | Commensurate supercell index (hex only) |
-| `mn_values` | [int, int] | Alternative twist angle specification |
-| `lattice_parameters` | [float, float, float] | Lattice constants [a, b, c] |
-| `superlattice_vectors_block` | 3×3 matrix | Superlattice vectors |
-| `write_lammps` | bool | Generate LAMMPS files |
-| `interlayer_potential` | str | Interlayer potential file (e.g., "C.KC") |
+| `hex_lattice` | bool | `True` for hexagonal geometry |
+| `i_value` | int | Commensurate index — sets twist angle for layers 1 & 2 automatically |
+| `mn_values` | [int, int] | Alternative: twist angle via [m, n] |
+| `lattice_parameters` | [float, float, float] | Lattice constants [a, b, c] in Å (used with `superlattice_vectors_block`) |
+| `superlattice_vectors_block` | 3×3 | Superlattice vectors in units of `lattice_parameters` |
+| `write_lammps` | bool | Generate `structure.lammps` and `lammps.in` |
+| `interlayer_potential` | str | KC potential filename (e.g. `"CC.KC"`, `"MoWSSe.KC"`) |
 
-### `layer*.inp` Parameters
+> When `i_value` or `mn_values` is set, superlattice vectors are computed automatically from the layer 1 unit cell. Only layers 1 and 2 have their twist angles overridden; additional layers use the `twist_angle` from their own file.
+
+### `layer*.inp`
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `twist_angle` | float | Rotation angle (degrees) |
-| `lattice_parameters` | [float, float, float] | Layer lattice constants |
-| `translate_z` | float | Vertical offset (Å) |
-| `lattice_vectors_block` | 3×3 matrix | Unit cell vectors |
-| `start_atom_positions_block` | list | Atom positions (symbol x y z tag) |
-| `intralayer_potential` | str | Potential file (e.g., "tmd.sw") |
-| `orthocell_transformation_matrix` | 3×3 matrix | Ortho basis transform (TMD only) |
-| `start_atom_positions_ortho_block` | list | Ortho basis atoms (TMD only) |
+| `twist_angle` | float | Rotation angle in degrees |
+| `lattice_parameters` | [float, float, float] | Layer lattice constants [a, b, c] in Å |
+| `translate_z` | float | Vertical offset in Å (sets interlayer spacing) |
+| `lattice_vectors_block` | 3×3 | Unit cell vectors in fractional coordinates |
+| `start_atom_positions_block` | block | `Symbol x y z tag` in scaled coordinates |
+| `intralayer_potential` | str | Potential filename for this layer |
+| `orthocell_transformation_matrix` | 3×3 | Hex → ortho transform (TMD ortho only) |
+| `start_atom_positions_ortho_block` | block | Orthorhombic basis atom positions (TMD ortho only) |
+
+### `cutpos.inp`
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `n_layers` | int | required | Number of layers to extract |
+| `lammps_dump` | str | `"dump.Final"` | LAMMPS dump file |
+| `orthocell_12atom_sw` | bool | `False` | Use orthorhombic basis for layer assignment |
+| `lattice_parameters` | [float, float, float] | None | Lattice constants for optional cut cell |
+| `superlattice_vectors_block` | 3×3 | None | Cut to smaller supercell (optional) |
 
 ---
 
-## LAMMPS Output Format
+## Atom Type Tags
 
-### For Mixed hBN+TMD Systems
+Each atom type must have a **unique integer tag** across all layers. Tags map LAMMPS atom types to chemical species and layers.
 
-The generator produces `lammps.in` with:
+**Graphene bilayer** (tags 1–4):
+- Layer 1: C→1, C→2
+- Layer 2: C→3, C→4
 
-```lammps
-# General
-units           metal
-dimension       3
-atom_style      atomic
-neighbor        0.3 bin
+**TMD bilayer, hexagonal** (tags 1–6):
+- Layer 1: Mo→1, Se→2, Se→3
+- Layer 2: Mo→4, Se→5, Se→6
 
-# Structure
-boundary        p p p
-read_data       structure.lammps
-mass 1 183.84   # W
-mass 2 78.971   # Se
-...
+**TMD bilayer, orthorhombic** (tags 1–24):
+- Layer 1: 12 atoms, tags 1–12
+- Layer 2: 12 atoms, tags 13–24
 
-# potential definitions
-pair_style hybrid/overlay sw/mod sw/mod tersoff tersoff kolmogorov/crespi/z 14.0 ...
-# Number of interlayer interactions = 8
+**hBN + TMD** (hBN tags follow max TMD tag):
+- TMD Layer 1 (hex): tags 1–3; TMD Layer 2: tags 4–6
+- hBN below: B→7, N→8; hBN above: B→9, N→10
 
-# intralayer interactions
-pair_coeff * * sw/mod 1 tmd.sw W Se Se NULL NULL NULL NULL NULL NULL NULL
-pair_coeff * * sw/mod 2 tmd.sw NULL NULL NULL W Se Se NULL NULL NULL NULL
-pair_coeff * * tersoff 1 BNC.tersoff NULL NULL NULL NULL NULL NULL B N NULL NULL
-pair_coeff * * tersoff 2 BNC.tersoff NULL NULL NULL NULL NULL NULL NULL NULL B N
+---
 
-pair_coeff * * lj/cut 0.0 3.4
+## Known Limitations
 
-# interlayer interaction
-pair_coeff 7 2 kolmogorov/crespi/z 1 SeBN.KC NULL Se NULL NULL NULL NULL B NULL NULL NULL
-...
+1. **Mixed systems**: Only hBN+TMD is fully implemented. Graphene+TMD and hBN+Graphene are not yet supported.
+2. **Twist angle override**: `i_value`/`mn_values` only sets the twist for layers 1 and 2. Layers 3+ use `twist_angle` from their input file.
+3. **Ortho z-tolerance**: Chalcogen partitioning uses a fixed z-tolerance. Highly corrugated post-relaxation structures may need manual verification.
 
-# Optimize at 0 K
-dump            1 all custom 400 dump.minimization id type x y z
-thermo          500
-min_style       fire
-minimize        0.0 1.0e-4 1000000 1000000
-write_dump all atom dump.Final
-print "Done!"
+---
+
+## Complete Workflow (Quick Reference)
+
+```bash
+# 1. Generate structure and LAMMPS files
+cd Examples/MySystem
+python ../../Src/twisterase.py
+
+# 2. Run LAMMPS relaxation
+lmp_serial -in lammps.in
+# or: mpirun -np 8 lmp_mpi -in lammps.in
+
+# 3. Extract individual layers from relaxed dump
+python ../../Src/cutpos.py
+
+# 4. Run analysis (interlayer spacing + strain maps)
+python ../../Src/run_analysis.py
+
+# 5. Convert to DFT format (optional)
+python ../../Src/cif2siesta.py relaxed_structure.cif output.fdf
+python ../../Src/cif2qe.py relaxed_structure.cif output.in
 ```
 
----
-
-## Known Issues & Limitations
-
-### Current Limitations
-1. **Structure file format**: Uses `atom_style full` with charges, but `lammps.in` uses `atom_style atomic`
-   - **Impact**: LAMMPS fails to read structure file
-   - **Status**: Needs structure writer update to match atomic style
-   
-2. **Mixed systems**: Only hBN+TMD fully implemented
-   - Graphene+TMD: Not implemented
-   - hBN+Graphene: Not implemented
-
-3. **Layer ordering**: Structure file processes layers sequentially
-   - hBN layers get remapped types based on position
-   - May not match expected ordering in some cases
-
-### Workarounds
-- For structure file format issue: Manually edit `structure.lammps` to remove molecule IDs and charges
-- For layer ordering: Rename layer files to control processing order
-
----
-
-## Examples
-
-See `Test/` directory for working examples:
-
-- **`Graphene_Bilayer_Hex/`**: Twisted bilayer graphene (21.8°)
-- **`hBN_Trilayer_Hex/`**: Three-layer hBN stack
-- **`WSe2_Bilayer_Hex/`**: Hexagonal WSe2 bilayer
-- **`WS2_WSe2_Bilayer_Ortho/`**: Orthorhombic WS2/WSe2 heterostructure
-- **`tWSe2_hBN/`**: Mixed TMD-hBN system (4 layers)
-
-Each example includes:
-- Input files (`twisterase.inp`, `layer*.inp`, `cutpos.inp`)
-- Potential files (`.KC`, `.sw`, `.tersoff`, `.rebo`)
-- Generated structures (`.cif`, `.lammps`)
-
----
-
-## Contributing
-
-TwisterASEv2 is under active development. Current priorities:
-
-1. Fix structure file format to use `atom_style atomic`
-2. Implement Graphene+TMD mixed systems
-3. Add support for more TMD materials (MoS2, MoSe2, WS2)
-4. Improve documentation and examples
-
----
-
-## References
-
-### Potentials
-- **KC (Kolmogorov-Crespi)**: Interlayer van der Waals interactions
-- **REBO**: Reactive empirical bond order (graphene)
-- **Tersoff**: Three-body potential (hBN)
-- **SW/mod**: Modified Stillinger-Weber (TMDs)
-
-### Related Tools
-- **ASE**: Atomic Simulation Environment (structure manipulation)
-- **LAMMPS**: Large-scale Atomic/Molecular Massively Parallel Simulator
-
----
-
-## License
-
-[Add license information]
-
----
-
-## Contact
-
-[Add contact information]
+See `docs/workflow.md` for the full step-by-step guide and `docs/input_files.md` for complete parameter reference.

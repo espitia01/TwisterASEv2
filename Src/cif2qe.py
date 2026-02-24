@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 cif2qe.py - Convert CIF files to Quantum ESPRESSO input format
 
@@ -116,18 +115,18 @@ def main():
     print(f"Reading: {input_cif}")
     try:
         atoms = read(input_cif)
-        print(f"  ✅ Read {len(atoms)} atoms")
+        print(f"  Read {len(atoms)} atoms")
         print(f"  Elements: {sorted(set(atoms.get_chemical_symbols()))}")
     except Exception as e:
-        print(f"❌ Error reading CIF file: {e}")
+        print(f"[FAIL] Error reading CIF file: {e}")
         sys.exit(1)
     
     print(f"\nWriting: {output_in}")
     try:
         write_qe_input(atoms, output_in)
-        print(f"  ✅ Quantum ESPRESSO input file written")
+        print(f"  Quantum ESPRESSO input file written")
     except Exception as e:
-        print(f"❌ Error writing QE input file: {e}")
+        print(f"[FAIL] Error writing QE input file: {e}")
         sys.exit(1)
     
     print(f"\n{'='*60}")
