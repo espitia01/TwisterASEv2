@@ -1,0 +1,14 @@
+alat = 2.504
+A1 = 13.00000000023325 0.00000000000000 0.00000000000000
+A2 = 6.50000000010107 11.25833024919800 0.00000000000000
+A3 = 0.00000000000000 0.00000000000000 39.93610223642174
+compute_spcs = [B B]
+rotate_plot = False
+rotate_angle = 0
+xlim = -53 53
+ylim = -31 31
+repeat_units = 2 2
+place_dots = False
+fontsize = 20
+tick_labelsize = 16
+shift_origin = 1 1

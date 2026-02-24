@@ -1,0 +1,16 @@
+# Number of layers
+n_layers = 4
+hex_lattice = True
+# Specify either mn_value or i_value
+#i_value = 12
+
+write_lammps = True
+
+lattice_parameters = [3.28, 3.28, 100.0]
+
+superlattice_vectors_block
+24.0 0.0 0.0
+12.0 20.784609690826528 0.000000000
+0.0 0.0 1.0
+
+interlayer_potential = "MoWSSe.KC"

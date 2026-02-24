@@ -1,0 +1,159 @@
+LAMMPS (29 Aug 2024 - Update 1)
+#1 General
+units           metal
+dimension       3
+atom_style      atomic
+neighbor        0.3 bin
+
+#2 Structure
+boundary        p p p
+read_data       structure.lammps
+Reading data file ...
+  triclinic box = (0 0 0) to (78.72 68.17352 35) with tilt (39.36 0 0)
+WARNING: Triclinic box skew is large. LAMMPS will run inefficiently. (src/domain.cpp:221)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3603 atoms
+  read_data CPU = 0.009 seconds
+mass 1 183.84
+mass 2 78.971
+mass 3 78.971
+mass 4 183.84
+mass 5 32.06
+mass 6 32.06
+
+#3 Potential definitions
+pair_style hybrid/overlay sw/mod sw/mod kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 lj/cut 10.0
+
+#4 Intralayer interactions
+pair_coeff * * sw/mod 1 tmd.sw W Se Se NULL NULL NULL
+pair_coeff * * sw/mod 2 tmd.sw NULL NULL NULL W S S
+
+#5 Interlayer interactions
+pair_coeff 1 4 kolmogorov/crespi/z 1 MoWSSe.KC W NULL NULL W NULL NULL
+pair_coeff 1 5 kolmogorov/crespi/z 2 MoWSSe.KC W NULL NULL NULL S NULL
+pair_coeff 3 4 kolmogorov/crespi/z 3 MoWSSe.KC NULL NULL Se W NULL NULL
+pair_coeff 3 5 kolmogorov/crespi/z 4 MoWSSe.KC NULL NULL Se NULL S NULL
+pair_coeff * * lj/cut 0.0 3.4
+
+#6 Optimize at 0 K
+dump            1 all custom 400 dump.minimization id type x y z
+min_style       fire
+minimize        0.0 1.0e-8 1000000 1000000
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Your simulation uses code contributions which should be cited:
+
+- Type Label Framework: https://doi.org/10.1021/acs.jpcb.3c08419
+
+@Article{Gissinger24,
+ author = {Jacob R. Gissinger, Ilia Nikiforov, Yaser Afshar, Brendon Waters, Moon-ki Choi, Daniel S. Karls, Alexander Stukowski, Wonpil Im, Hendrik Heinz, Axel Kohlmeyer, and Ellad B. Tadmor},
+ title = {Type Label Framework for Bonded Force Fields in LAMMPS},
+ journal = {J. Phys. Chem. B},
+ year =    2024,
+ volume =  128,
+ number =  13,
+ pages =   {3282–-3297}
+}
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 14.3
+  ghost atom cutoff = 14.3
+  binsize = 7.15, bins = 17 10 5
+  9 neighbor lists, perpetual/occasional/extra = 9 0 0
+  (1) pair sw/mod, perpetual, skip from (9)
+      attributes: full, newton on, cut 3.6104339999999997
+      pair build: skip
+      stencil: none
+      bin: none
+  (2) pair sw/mod, perpetual, skip from (9)
+      attributes: full, newton on, cut 3.463062
+      pair build: skip
+      stencil: none
+      bin: none
+  (3) pair kolmogorov/crespi/z, perpetual, skip from (8)
+      attributes: half, newton on
+      pair build: skip
+      stencil: none
+      bin: none
+  (4) pair kolmogorov/crespi/z, perpetual, skip from (8)
+      attributes: half, newton on
+      pair build: skip
+      stencil: none
+      bin: none
+  (5) pair kolmogorov/crespi/z, perpetual, skip from (8)
+      attributes: half, newton on
+      pair build: skip
+      stencil: none
+      bin: none
+  (6) pair kolmogorov/crespi/z, perpetual, skip from (8)
+      attributes: half, newton on
+      pair build: skip
+      stencil: none
+      bin: none
+  (7) pair lj/cut, perpetual, trim from (8)
+      attributes: half, newton on, cut 10.3
+      pair build: trim
+      stencil: none
+      bin: none
+  (8) neighbor class addition, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton/tri
+      stencil: half/bin/3d/tri
+      bin: standard
+  (9) neighbor class addition, perpetual
+      attributes: full, newton on, cut 3.6104339999999997
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+  Parameters for fire:
+    dmax  delaystep dtgrow dtshrink alpha0 alphashrink tmax tmin   integrator   halfstepback   abcfire  
+     0.1     20      1.1     0.5     0.25     0.99      10  0.02 eulerimplicit      yes          no     
+Per MPI rank memory allocation (min/avg/max) = 12.77 | 12.77 | 12.77 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+         0   0             -8128.587       0             -8128.587       14917.078    
+      1666   5.282515e-14  -8309.0187      0             -8309.0187     -2205.0872    
+Loop time of 9.68551 on 1 procs for 1666 steps with 3603 atoms
+
+98.6% CPU use with 1 MPI tasks x no OpenMP threads
+
+Minimization stats:
+  Stopping criterion = force tolerance
+  Energy initial, next-to-last, final = 
+     -8128.58703868441  -8309.01865412026  -8309.01865412026
+  Force two-norm initial, final = 100.79037 9.9944357e-09
+  Force max component initial, final = 2.9888791 5.478949e-10
+  Final line search alpha, max atom move = 0 0
+  Iterations, force evaluations = 1666 1673
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 9.3987     | 9.3987     | 9.3987     |   0.0 | 97.04
+Neigh   | 0.16316    | 0.16316    | 0.16316    |   0.0 |  1.68
+Comm    | 0.039495   | 0.039495   | 0.039495   |   0.0 |  0.41
+Output  | 0.007853   | 0.007853   | 0.007853   |   0.0 |  0.08
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.07626    |            |       |  0.79
+
+Nlocal:           3603 ave        3603 max        3603 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:          10399 ave       10399 max       10399 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         317881 ave      317881 max      317881 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 317881
+Ave neighs/atom = 88.226755
+Neighbor list builds = 13
+Dangerous builds = 0
+undump          1
+write_dump      all custom dump.Final id type x y z modify sort id
+print "Done!"
+Done!
+Total wall time: 0:00:09

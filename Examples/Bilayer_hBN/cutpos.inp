@@ -1,3 +1,0 @@
-n_layers = 2
-lammps_dump = "dump.Final"
-orthocell_12atom_sw = False

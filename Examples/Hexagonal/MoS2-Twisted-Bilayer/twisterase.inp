@@ -1,0 +1,9 @@
+# Number of layers
+n_layers = 2
+hex_lattice = True
+# Specify either mn_value or i_value
+i_value = 1
+
+write_lammps = True
+
+interlayer_potential = "MoWSSe.KC"

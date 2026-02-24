@@ -1,0 +1,26 @@
+# twist angle by which this layer should be rotated
+twist_angle = 0.0
+
+# Lattice parameters in Angstrom units
+lattice_parameters = [2.46, 2.46, 35.0]
+
+# Lattice vectors in units of the lattice 
+# parameters
+lattice_vectors_block
+0.5 0.8660254038 0.0
+-0.5 0.8660254038 0.0
+0.0 0.0 1.0
+
+# Atom positions are provided in crystal/scaled positions
+# The integer tags are optional
+start_atom_positions_block
+C   0.000000000   0.000000000   0.5 1
+C   0.666666666   0.666666666   0.5 2
+end_atom_positions_block
+
+strain_percentage = [0.0, 0.0, 0.0 ]
+
+# translate along z-axis (Angstrom)
+translate_z = 0.0 
+
+intralayer_potential = "CH.rebo"

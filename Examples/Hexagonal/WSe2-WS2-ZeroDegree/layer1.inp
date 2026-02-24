@@ -1,0 +1,23 @@
+# twist angle by which this layer should be rotated
+twist_angle = 0.0
+
+# Lattice parameters in Angstrom units
+lattice_parameters = [3.28, 3.28, 35.0]
+
+# Lattice vectors in units of the lattice 
+# parameters
+lattice_vectors_block
+1.0 0.0 0.0
+0.5 0.8660254038 0.0
+0.0 0.0 1.0
+
+start_atom_positions_block
+W	0.0 0.0 0.168272109 1
+Se	0.66666666666 0.66666666666 0.124125946 2
+Se	0.66666666666 0.66666666666 0.212418272 3
+end_atom_positions_block
+
+# translate along z-axis (Angstrom)
+translate_z = 0.0 
+
+intralayer_potential = "tmd.sw"

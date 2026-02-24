@@ -1,0 +1,12 @@
+# cutpos.inp - Configuration for layer extraction
+
+n_layers = 2
+lammps_dump = "dump.Final"
+orthocell_12atom_sw = True
+
+lattice_parameters = [1.0, 1.0, 35.0]
+
+superlattice_vectors_block
+71.03301767522625 0.0 0.0
+35.516508837613124 61.516397814214976 0.000000000
+0.0 0.0 1.0

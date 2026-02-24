@@ -1,0 +1,246 @@
+# Initialization
+units           metal
+dimension       3
+box tilt        large
+boundary        p p p
+atom_style      full
+
+# System and atom definition
+read_data       structure.lammps
+
+mass            1 10.81
+mass            2 14.007
+mass            3 10.81
+mass            4 14.007
+mass            5 10.81
+mass            6 14.007
+mass            7 10.81
+mass            8 14.007
+mass            9 10.81
+mass            10 14.007
+mass            11 10.81
+mass            12 14.007
+mass            13 10.81
+mass            14 14.007
+mass            15 10.81
+mass            16 14.007
+mass            17 10.81
+mass            18 14.007
+mass            19 10.81
+mass            20 14.007
+
+group           layer1 molecule 1
+group           layer2 molecule 2
+group           layer3 molecule 3
+group           layer4 molecule 4
+group           layer5 molecule 5
+group           layer6 molecule 6
+group           layer7 molecule 7
+group           layer8 molecule 8
+group           layer9 molecule 9
+group           layer10 molecule 10
+
+# Potentials
+pair_style      hybrid/overlay tersoff ilp/graphene/hbn 16.0 coul/shield 16.0 1
+
+# Intralayer Interaction
+pair_coeff      * * tersoff BNC.tersoff B N B N B N B N B N B N B N B N B N B N
+
+# Interlayer Interaction
+pair_coeff      * * ilp/graphene/hbn BNCH.ILP B N B N B N B N B N B N B N B N B N B N
+
+# Coulomb interactions between layers
+pair_coeff      1 3 coul/shield 0.7
+pair_coeff      1 4 coul/shield 0.6949820141557622
+pair_coeff      2 3 coul/shield 0.6949820141557622
+pair_coeff      2 4 coul/shield 0.69
+pair_coeff      1 5 coul/shield 0.7
+pair_coeff      1 6 coul/shield 0.6949820141557622
+pair_coeff      2 5 coul/shield 0.6949820141557622
+pair_coeff      2 6 coul/shield 0.69
+pair_coeff      1 7 coul/shield 0.7
+pair_coeff      1 8 coul/shield 0.6949820141557622
+pair_coeff      2 7 coul/shield 0.6949820141557622
+pair_coeff      2 8 coul/shield 0.69
+pair_coeff      1 9 coul/shield 0.7
+pair_coeff      1 10 coul/shield 0.6949820141557622
+pair_coeff      2 9 coul/shield 0.6949820141557622
+pair_coeff      2 10 coul/shield 0.69
+pair_coeff      1 11 coul/shield 0.7
+pair_coeff      1 12 coul/shield 0.6949820141557622
+pair_coeff      2 11 coul/shield 0.6949820141557622
+pair_coeff      2 12 coul/shield 0.69
+pair_coeff      1 13 coul/shield 0.7
+pair_coeff      1 14 coul/shield 0.6949820141557622
+pair_coeff      2 13 coul/shield 0.6949820141557622
+pair_coeff      2 14 coul/shield 0.69
+pair_coeff      1 15 coul/shield 0.7
+pair_coeff      1 16 coul/shield 0.6949820141557622
+pair_coeff      2 15 coul/shield 0.6949820141557622
+pair_coeff      2 16 coul/shield 0.69
+pair_coeff      1 17 coul/shield 0.7
+pair_coeff      1 18 coul/shield 0.6949820141557622
+pair_coeff      2 17 coul/shield 0.6949820141557622
+pair_coeff      2 18 coul/shield 0.69
+pair_coeff      1 19 coul/shield 0.7
+pair_coeff      1 20 coul/shield 0.6949820141557622
+pair_coeff      2 19 coul/shield 0.6949820141557622
+pair_coeff      2 20 coul/shield 0.69
+pair_coeff      3 5 coul/shield 0.7
+pair_coeff      3 6 coul/shield 0.6949820141557622
+pair_coeff      4 5 coul/shield 0.6949820141557622
+pair_coeff      4 6 coul/shield 0.69
+pair_coeff      3 7 coul/shield 0.7
+pair_coeff      3 8 coul/shield 0.6949820141557622
+pair_coeff      4 7 coul/shield 0.6949820141557622
+pair_coeff      4 8 coul/shield 0.69
+pair_coeff      3 9 coul/shield 0.7
+pair_coeff      3 10 coul/shield 0.6949820141557622
+pair_coeff      4 9 coul/shield 0.6949820141557622
+pair_coeff      4 10 coul/shield 0.69
+pair_coeff      3 11 coul/shield 0.7
+pair_coeff      3 12 coul/shield 0.6949820141557622
+pair_coeff      4 11 coul/shield 0.6949820141557622
+pair_coeff      4 12 coul/shield 0.69
+pair_coeff      3 13 coul/shield 0.7
+pair_coeff      3 14 coul/shield 0.6949820141557622
+pair_coeff      4 13 coul/shield 0.6949820141557622
+pair_coeff      4 14 coul/shield 0.69
+pair_coeff      3 15 coul/shield 0.7
+pair_coeff      3 16 coul/shield 0.6949820141557622
+pair_coeff      4 15 coul/shield 0.6949820141557622
+pair_coeff      4 16 coul/shield 0.69
+pair_coeff      3 17 coul/shield 0.7
+pair_coeff      3 18 coul/shield 0.6949820141557622
+pair_coeff      4 17 coul/shield 0.6949820141557622
+pair_coeff      4 18 coul/shield 0.69
+pair_coeff      3 19 coul/shield 0.7
+pair_coeff      3 20 coul/shield 0.6949820141557622
+pair_coeff      4 19 coul/shield 0.6949820141557622
+pair_coeff      4 20 coul/shield 0.69
+pair_coeff      5 7 coul/shield 0.7
+pair_coeff      5 8 coul/shield 0.6949820141557622
+pair_coeff      6 7 coul/shield 0.6949820141557622
+pair_coeff      6 8 coul/shield 0.69
+pair_coeff      5 9 coul/shield 0.7
+pair_coeff      5 10 coul/shield 0.6949820141557622
+pair_coeff      6 9 coul/shield 0.6949820141557622
+pair_coeff      6 10 coul/shield 0.69
+pair_coeff      5 11 coul/shield 0.7
+pair_coeff      5 12 coul/shield 0.6949820141557622
+pair_coeff      6 11 coul/shield 0.6949820141557622
+pair_coeff      6 12 coul/shield 0.69
+pair_coeff      5 13 coul/shield 0.7
+pair_coeff      5 14 coul/shield 0.6949820141557622
+pair_coeff      6 13 coul/shield 0.6949820141557622
+pair_coeff      6 14 coul/shield 0.69
+pair_coeff      5 15 coul/shield 0.7
+pair_coeff      5 16 coul/shield 0.6949820141557622
+pair_coeff      6 15 coul/shield 0.6949820141557622
+pair_coeff      6 16 coul/shield 0.69
+pair_coeff      5 17 coul/shield 0.7
+pair_coeff      5 18 coul/shield 0.6949820141557622
+pair_coeff      6 17 coul/shield 0.6949820141557622
+pair_coeff      6 18 coul/shield 0.69
+pair_coeff      5 19 coul/shield 0.7
+pair_coeff      5 20 coul/shield 0.6949820141557622
+pair_coeff      6 19 coul/shield 0.6949820141557622
+pair_coeff      6 20 coul/shield 0.69
+pair_coeff      7 9 coul/shield 0.7
+pair_coeff      7 10 coul/shield 0.6949820141557622
+pair_coeff      8 9 coul/shield 0.6949820141557622
+pair_coeff      8 10 coul/shield 0.69
+pair_coeff      7 11 coul/shield 0.7
+pair_coeff      7 12 coul/shield 0.6949820141557622
+pair_coeff      8 11 coul/shield 0.6949820141557622
+pair_coeff      8 12 coul/shield 0.69
+pair_coeff      7 13 coul/shield 0.7
+pair_coeff      7 14 coul/shield 0.6949820141557622
+pair_coeff      8 13 coul/shield 0.6949820141557622
+pair_coeff      8 14 coul/shield 0.69
+pair_coeff      7 15 coul/shield 0.7
+pair_coeff      7 16 coul/shield 0.6949820141557622
+pair_coeff      8 15 coul/shield 0.6949820141557622
+pair_coeff      8 16 coul/shield 0.69
+pair_coeff      7 17 coul/shield 0.7
+pair_coeff      7 18 coul/shield 0.6949820141557622
+pair_coeff      8 17 coul/shield 0.6949820141557622
+pair_coeff      8 18 coul/shield 0.69
+pair_coeff      7 19 coul/shield 0.7
+pair_coeff      7 20 coul/shield 0.6949820141557622
+pair_coeff      8 19 coul/shield 0.6949820141557622
+pair_coeff      8 20 coul/shield 0.69
+pair_coeff      9 11 coul/shield 0.7
+pair_coeff      9 12 coul/shield 0.6949820141557622
+pair_coeff      10 11 coul/shield 0.6949820141557622
+pair_coeff      10 12 coul/shield 0.69
+pair_coeff      9 13 coul/shield 0.7
+pair_coeff      9 14 coul/shield 0.6949820141557622
+pair_coeff      10 13 coul/shield 0.6949820141557622
+pair_coeff      10 14 coul/shield 0.69
+pair_coeff      9 15 coul/shield 0.7
+pair_coeff      9 16 coul/shield 0.6949820141557622
+pair_coeff      10 15 coul/shield 0.6949820141557622
+pair_coeff      10 16 coul/shield 0.69
+pair_coeff      9 17 coul/shield 0.7
+pair_coeff      9 18 coul/shield 0.6949820141557622
+pair_coeff      10 17 coul/shield 0.6949820141557622
+pair_coeff      10 18 coul/shield 0.69
+pair_coeff      9 19 coul/shield 0.7
+pair_coeff      9 20 coul/shield 0.6949820141557622
+pair_coeff      10 19 coul/shield 0.6949820141557622
+pair_coeff      10 20 coul/shield 0.69
+pair_coeff      11 13 coul/shield 0.7
+pair_coeff      11 14 coul/shield 0.6949820141557622
+pair_coeff      12 13 coul/shield 0.6949820141557622
+pair_coeff      12 14 coul/shield 0.69
+pair_coeff      11 15 coul/shield 0.7
+pair_coeff      11 16 coul/shield 0.6949820141557622
+pair_coeff      12 15 coul/shield 0.6949820141557622
+pair_coeff      12 16 coul/shield 0.69
+pair_coeff      11 17 coul/shield 0.7
+pair_coeff      11 18 coul/shield 0.6949820141557622
+pair_coeff      12 17 coul/shield 0.6949820141557622
+pair_coeff      12 18 coul/shield 0.69
+pair_coeff      11 19 coul/shield 0.7
+pair_coeff      11 20 coul/shield 0.6949820141557622
+pair_coeff      12 19 coul/shield 0.6949820141557622
+pair_coeff      12 20 coul/shield 0.69
+pair_coeff      13 15 coul/shield 0.7
+pair_coeff      13 16 coul/shield 0.6949820141557622
+pair_coeff      14 15 coul/shield 0.6949820141557622
+pair_coeff      14 16 coul/shield 0.69
+pair_coeff      13 17 coul/shield 0.7
+pair_coeff      13 18 coul/shield 0.6949820141557622
+pair_coeff      14 17 coul/shield 0.6949820141557622
+pair_coeff      14 18 coul/shield 0.69
+pair_coeff      13 19 coul/shield 0.7
+pair_coeff      13 20 coul/shield 0.6949820141557622
+pair_coeff      14 19 coul/shield 0.6949820141557622
+pair_coeff      14 20 coul/shield 0.69
+pair_coeff      15 17 coul/shield 0.7
+pair_coeff      15 18 coul/shield 0.6949820141557622
+pair_coeff      16 17 coul/shield 0.6949820141557622
+pair_coeff      16 18 coul/shield 0.69
+pair_coeff      15 19 coul/shield 0.7
+pair_coeff      15 20 coul/shield 0.6949820141557622
+pair_coeff      16 19 coul/shield 0.6949820141557622
+pair_coeff      16 20 coul/shield 0.69
+pair_coeff      17 19 coul/shield 0.7
+pair_coeff      17 20 coul/shield 0.6949820141557622
+pair_coeff      18 19 coul/shield 0.6949820141557622
+pair_coeff      18 20 coul/shield 0.69
+
+# Neighbor settings
+neighbor        2.0 bin
+neigh_modify    every 1 delay 0 check yes
+
+# Optimization
+dump            1 all custom 100 dump.minimization id type x y z
+thermo          1000
+thermo_style    custom step pe press
+min_style       fire
+minimize        1.0e-10 1.0e-12 100000 1000000
+undump          1
+write_dump      all custom dump.Final id type x y z modify sort id
+print "Done!"

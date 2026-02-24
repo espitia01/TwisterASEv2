@@ -1,0 +1,38 @@
+# hBN top layer (above second MoSe2 layer)
+twist_angle = 0.0
+
+# hBN lattice parameters
+lattice_parameters = [2.5393548387096776, 2.5393548387096776, 100.0]
+
+# Lattice vectors in units of the lattice parameters
+lattice_vectors_block
+1.0 0.0 0.0
+0.5 0.8660254038 0.0
+0.0 0.0 1.0
+
+orthocell_transformation_matrix
+2 0 0
+-1 2 0
+0 0 1
+
+start_atom_positions_block
+N  0.000000  0.000000  0.500000  9
+B  0.333333  0.333333  0.500000  10
+end_atom_positions_block
+
+start_atom_positions_ortho_block
+B   0.000000  0.666667  0.500000  33
+B   0.250000  0.166667  0.500000  34
+B   0.500000  0.666667  0.500000  35
+B   0.750000  0.166667  0.500000  36
+N   0.000000  0.000000  0.500000  37
+N   0.250000  0.500000  0.500000  38
+N   0.500000  0.000000  0.500000  39
+N   0.750000  0.500000  0.500000  40
+end_atom_positions_ortho_block
+
+# translate along z-axis (Angstrom)
+translate_z = 13.5
+
+intralayer_potential = "BNC.tersoff"
+

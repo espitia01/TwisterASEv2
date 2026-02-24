@@ -1,0 +1,13 @@
+# Number of layers
+n_layers = 2
+hex_lattice = True
+# Specify either mn_value or i_value
+i_value = 7
+#mn_values = [1, 0]
+# Lattice parameters of the superlattice
+#lattice_parameters = [5.0, 5.0,1.0]
+# superlattice_vectors_block
+
+write_lammps = True
+
+interlayer_potential = "BNCH.ILP"

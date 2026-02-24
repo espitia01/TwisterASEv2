@@ -1,0 +1,14 @@
+alat = 3.15
+A1 = 2.64575131108497 0.00000000000000 0.00000000000000
+A2 = 1.32287565558323 2.29128784750145 0.00000000000000
+A3 = 0.00000000000000 0.00000000000000 11.11111111111111
+compute_spcs = [Mo Mo]
+rotate_plot = False
+rotate_angle = 0
+xlim = -13 13
+ylim = -7 7
+repeat_units = 2 2
+place_dots = False
+fontsize = 20
+tick_labelsize = 16
+shift_origin = 1 1
