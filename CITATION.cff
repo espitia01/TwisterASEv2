@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Giovanny"
+  given-names: "Espitia"
+  orcid: "https://orcid.org/0009-0000-2293-2333"
+- family-names: "Rwik"
+  given-names: "Dutta"
+- family-names: "Mit H."
+  given-names: "Naik"
+  orcid: "https://orcid.org/0000-0001-8911-9830"
+  
+title: "TwisterASE"
+version: 2.0.0
+doi: 10.5281/zenodo.18761862
+date-released: 2026-02-24
+url: "https://github.com/espitia01/TwisterASEv2"
