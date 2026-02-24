@@ -64,58 +64,75 @@ pip install numpy scipy ase matplotlib
 
 ---
 
-## Worked Example: Twisted Bilayer Graphene
+## Worked Example: Twisted Bilayer MoS₂
 
-This reproduces `Examples/Graphene_Bilayer_Hex/` — a commensurate twisted bilayer graphene at `i_value = 9` (~13.17°).
+This reproduces `Examples/Hexagonal/MoS2-Twisted-Bilayer/` — a commensurate twisted bilayer MoS₂ at `i_value = 1` (~21.79°).
 
 ### Step 1 — Input files
 
 **`twisterase.inp`**
 ```
+# Number of layers
 n_layers = 2
 hex_lattice = True
-i_value = 9
+# Specify either mn_value or i_value
+i_value = 1
 
 write_lammps = True
-interlayer_potential = "CC.KC"
+
+interlayer_potential = "MoWSSe.KC"
 ```
 
-**`layer1.inp`** — bottom layer (tags 1, 2)
+**`layer1.inp`** — bottom layer (tags 1-3)
 ```
+# twist angle by which this layer should be rotated
 twist_angle = 0.0
-lattice_parameters = [2.46, 2.46, 35.0]
 
+# Lattice parameters in Angstrom units
+lattice_parameters = [3.15, 3.15, 35.0]
+
+# Lattice vectors in units of the lattice parameters
 lattice_vectors_block
 1.0 0.0 0.0
 0.5 0.8660254038 0.0
 0.0 0.0 1.0
 
 start_atom_positions_block
-C   0.000000000   0.000000000   0.5  1
-C   0.666666666   0.666666666   0.5  2
+Mo	0.0 0.0 0.168272109 1
+S	0.66666666666 0.66666666666 0.124125946 2
+S	0.66666666666 0.66666666666 0.212418272 3
 end_atom_positions_block
 
-translate_z = 0.0
-intralayer_potential = "CH.rebo"
+# translate along z-axis (Angstrom)
+translate_z = 0.0 
+
+intralayer_potential = "tmd.sw"
 ```
 
-**`layer2.inp`** — top layer (tags 3, 4; twist set automatically by `i_value`)
+**`layer2.inp`** — top layer (tags 4-6; twist set automatically by `i_value`)
 ```
+# twist angle by which this layer should be rotated
 twist_angle = 0.0
-lattice_parameters = [2.46, 2.46, 35.0]
 
+# Lattice parameters in Angstrom units
+lattice_parameters = [3.15, 3.15, 35.0]
+
+# Lattice vectors in units of the lattice parameters
 lattice_vectors_block
 1.0 0.0 0.0
 0.5 0.8660254038 0.0
 0.0 0.0 1.0
 
 start_atom_positions_block
-C   0.000000000   0.000000000   0.5  3
-C   0.666666666   0.666666666   0.5  4
+Mo	0.0 0.0 0.168272109 4
+S	0.66666666666 0.66666666666 0.124125946 5
+S	0.66666666666 0.66666666666 0.212418272 6
 end_atom_positions_block
 
-translate_z = 3.3
-intralayer_potential = "CH.rebo"
+# translate along z-axis (Angstrom)
+translate_z = 6.7
+
+intralayer_potential = "tmd.sw"
 ```
 
 > **Tag rule**: each atom type must have a unique integer tag across all layers.
@@ -123,8 +140,8 @@ intralayer_potential = "CH.rebo"
 ### Step 2 — Generate structure
 
 ```bash
-cd Examples/Graphene_Bilayer_Hex
-python ../../Src/twisterase.py
+cd Examples/Hexagonal/MoS2-Twisted-Bilayer
+python ../../../Src/twisterase.py
 ```
 
 Produces: `superlattice.cif`, `structure.lammps`, `lammps.in`
@@ -139,15 +156,25 @@ neighbor        0.3 bin
 
 boundary        p p p
 read_data       structure.lammps
-mass 1 12.011
-mass 2 12.011
-mass 3 12.011
-mass 4 12.011
+mass 1 95.95
+mass 2 32.06
+mass 3 32.06
+mass 4 95.95
+mass 5 32.06
+mass 6 32.06
 
-pair_style      hybrid/overlay rebo kolmogorov/crespi/z 14.0
+pair_style      hybrid/overlay sw/mod sw/mod kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 kolmogorov/crespi/z 14.0 lj/cut 10.0
 
-pair_coeff      * * rebo CH.rebo C C C C
-pair_coeff      1 3 kolmogorov/crespi/z CC.KC C C C C
+# Intralayer interactions
+pair_coeff * * sw/mod 1 tmd.sw Mo S S NULL NULL NULL
+pair_coeff * * sw/mod 2 tmd.sw NULL NULL NULL Mo S S
+
+# Interlayer interactions
+pair_coeff 1 4 kolmogorov/crespi/z 1 MoWSSe.KC Mo NULL NULL Mo NULL NULL
+pair_coeff 1 5 kolmogorov/crespi/z 2 MoWSSe.KC Mo NULL NULL NULL S NULL
+pair_coeff 3 4 kolmogorov/crespi/z 3 MoWSSe.KC NULL NULL S Mo NULL NULL
+pair_coeff 3 5 kolmogorov/crespi/z 4 MoWSSe.KC NULL NULL S NULL S NULL
+pair_coeff * * lj/cut 0.0 3.4
 
 dump            1 all custom 400 dump.minimization id type x y z
 min_style       fire
@@ -175,7 +202,7 @@ orthocell_12atom_sw = False
 ```
 
 ```bash
-python ../../Src/cutpos.py
+python ../../../Src/cutpos.py
 ```
 
 Produces: `relaxed_structure.cif`, `layer_1.cif`, `layer_2.cif`, `layer_1_coords.dat`, `layer_2_coords.dat`
@@ -183,7 +210,7 @@ Produces: `relaxed_structure.cif`, `layer_1.cif`, `layer_2.cif`, `layer_1_coords
 ### Step 6 — Run analysis
 
 ```bash
-python ../../Src/run_analysis.py
+python ../../../Src/run_analysis.py
 ```
 
 Produces interlayer spacing maps and per-layer strain maps in `InterlayerSpacingMap/` and `StrainMap/`.
@@ -194,11 +221,11 @@ Produces interlayer spacing maps and per-layer strain maps in `InterlayerSpacing
 
 | Material | Basis | Intralayer | Interlayer | Examples |
 |----------|-------|-----------|-----------|---------|
-| **Graphene** | 2 C atoms (hex) | REBO (`CH.rebo`) | KC (`CC.KC`) — one `pair_coeff` per adjacent pair | `Graphene_Bilayer_Hex/` |
-| **hBN** | 2 atoms B, N (hex) | Tersoff (`BNC.tersoff`) per layer | ILP (`BNCH.ILP`) | `Bilayer_hBN/`, `hBN_Trilayer_Hex/` |
-| **TMD hex** | 3 atoms: TM + 2 X (hex) | SW/mod (`tmd.sw`) | KC — z-classified (TM, X_l, X_u) | `tMoSe2/`, `WSe2_Bilayer_Hex/` |
-| **TMD ortho** | 12 atoms: 4 TM + 8 X (ortho) | SW/mod | KC — 64 interactions per layer pair | `tMoSe2_Ortho/`, `WS2_WSe2_Bilayer_Ortho/` |
-| **hBN + TMD** | mixed | SW/mod + Tersoff per layer | KC chalcogen-specific (`SeBN.KC`, `SBN.KC`) | `tWSe2_hBN/`, `tMoSe2_Ortho_hBN/` |
+| **Graphene** | 2 C atoms (hex) | REBO (`CH.rebo`) | KC (`CC.KC`) — one `pair_coeff` per adjacent pair | `Hexagonal/Graphene-Trilayer/` |
+| **hBN** | 2 atoms B, N (hex) | Tersoff (`BNC.tersoff`) per layer | ILP (`BNCH.ILP`) | `Hexagonal/hBN-2-Layer/`, `Hexagonal/hBN-10-Layer/` |
+| **TMD hex** | 3 atoms: TM + 2 X (hex) | SW/mod (`tmd.sw`) | KC — z-classified (TM, X_l, X_u) | `Hexagonal/MoS2-Twisted-Bilayer/`, `Hexagonal/WSe2-Twisted-Bilayer/` |
+| **TMD ortho** | 12 atoms: 4 TM + 8 X (ortho) | SW/mod | KC — 64 interactions per layer pair | `Ortho/WSe2-Twisted-Bilayer/`, `Ortho/WSe2-WS2-ZeroDegree/` |
+| **hBN + TMD** | mixed | SW/mod + Tersoff per layer | KC chalcogen-specific (`SeBN.KC`, `SBN.KC`) | `Ortho/WSe2-WS2-ZeroDegree-hBN/`, `Ortho/WSe2-Twisted-Bilayer-hBN-Bottom/` |
 
 > Graphene+TMD and hBN+Graphene mixed systems are not yet implemented.
 
@@ -228,16 +255,19 @@ TwisterASEv2/
 │   └── cif2qe.py                  # CIF → Quantum ESPRESSO converter
 │
 ├── Examples/
-│   ├── Graphene_Bilayer_Hex/      # Twisted bilayer graphene (i_value=9, ~13.2°)
-│   ├── Bilayer_hBN/               # hBN bilayer
-│   ├── hBN_Trilayer_Hex/          # hBN trilayer
-│   ├── WSe2_Bilayer_Hex/          # Hexagonal WSe2 bilayer
-│   ├── WS2_WSe2_Bilayer_Ortho/    # Orthorhombic WS2/WSe2 heterostructure
-│   ├── tMoSe2/                    # Twisted MoSe2 (hex, i_value=5)
-│   ├── tMoSe2_Ortho/              # Twisted MoSe2 (orthorhombic basis)
-│   ├── tMoSe2_Ortho_hBN/          # MoSe2 ortho + hBN encapsulation
-│   ├── tWSe2_hBN/                 # Mixed TMD-hBN heterostructure
-│   └── MoSe2-10x10_SC/            # Large MoSe2 supercell
+│   ├── Hexagonal/
+│   │   ├── MoS2-Twisted-Bilayer/     # Twisted MoS₂ bilayer (i_value=1, ~21.8°)
+│   │   ├── WSe2-Twisted-Bilayer/     # Twisted WSe₂ bilayer (i_value=12)
+│   │   ├── WSe2-WS2-ZeroDegree/      # WSe₂/WS₂ heterostructure (0°)
+│   │   ├── Graphene-Trilayer/        # 3-layer graphene (mn_values=[11,12])
+│   │   ├── hBN-2-Layer/              # hBN bilayer (i_value=7)
+│   │   ├── hBN-10-Layer/             # 10-layer hBN system (i_value=37)
+│   │   └── hex.table                 # Twist angle reference table
+│   └── Ortho/
+│       ├── WSe2-Twisted-Bilayer/     # Orthorhombic WSe₂ (i_value=12)
+│       ├── WSe2-WS2-ZeroDegree/      # Ortho WSe₂/WS₂ heterostructure
+│       ├── WSe2-WS2-ZeroDegree-hBN/  # 4-layer ortho + hBN encapsulation
+│       └── WSe2-Twisted-Bilayer-hBN-Bottom/  # WSe₂ with hBN bottom layer
 │
 ├── docs/
 │   ├── input_files.md             # Full input file format reference
@@ -326,22 +356,22 @@ Each atom type must have a **unique integer tag** across all layers. Tags map LA
 
 ```bash
 # 1. Generate structure and LAMMPS files
-cd Examples/MySystem
-python ../../Src/twisterase.py
+cd Examples/Hexagonal/MoS2-Twisted-Bilayer
+python ../../../Src/twisterase.py
 
 # 2. Run LAMMPS relaxation
 lmp_serial -in lammps.in
 # or: mpirun -np 8 lmp_mpi -in lammps.in
 
 # 3. Extract individual layers from relaxed dump
-python ../../Src/cutpos.py
+python ../../../Src/cutpos.py
 
 # 4. Run analysis (interlayer spacing + strain maps)
-python ../../Src/run_analysis.py
+python ../../../Src/run_analysis.py
 
 # 5. Convert to DFT format (optional)
-python ../../Src/cif2siesta.py relaxed_structure.cif output.fdf
-python ../../Src/cif2qe.py relaxed_structure.cif output.in
+python ../../../Src/cif2siesta.py relaxed_structure.cif output.fdf
+python ../../../Src/cif2qe.py relaxed_structure.cif output.in
 ```
 
 See `docs/workflow.md` for the full step-by-step guide and `docs/input_files.md` for complete parameter reference.
