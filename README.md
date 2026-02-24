@@ -230,7 +230,6 @@ Produces interlayer spacing maps and per-layer strain maps in `InterlayerSpacing
 > Graphene+TMD and hBN+Graphene mixed systems are not yet implemented.
 
 ---
-
 ## File Structure
 
 ```
